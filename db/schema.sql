@@ -70,6 +70,44 @@ CREATE TABLE IF NOT EXISTS meta_ad_age_daily (
   PRIMARY KEY (account_id, ad_id, insight_date, age_bucket)
 );
 
+
+CREATE TABLE IF NOT EXISTS gc_leads (
+  email text NOT NULL,
+  gc_order_number text PRIMARY KEY,
+  created_at timestamptz,
+  lead_date date,
+  product_name text,
+  utm_source text,
+  utm_medium text,
+  utm_campaign text,
+  utm_content text,
+  utm_term text,
+  imported_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS gc_orders (
+  order_number text PRIMARY KEY,
+  email text NOT NULL,
+  status text,
+  positions text,
+  cost_amount numeric(18,6) NOT NULL DEFAULT 0,
+  paid_amount numeric(18,6) NOT NULL DEFAULT 0,
+  currency char(3) NOT NULL DEFAULT 'EUR',
+  created_at timestamptz,
+  imported_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS gc_events (
+  email text NOT NULL,
+  event_type text NOT NULL CHECK (event_type IN ('l1in','l1sent','graduates')),
+  imported_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (email, event_type)
+);
+
+CREATE INDEX IF NOT EXISTS gc_leads_utm_idx ON gc_leads (utm_campaign, utm_content, utm_term);
+CREATE INDEX IF NOT EXISTS gc_leads_email_idx ON gc_leads (email);
+CREATE INDEX IF NOT EXISTS gc_orders_email_idx ON gc_orders (email);
+
 CREATE TABLE IF NOT EXISTS entity_tags (
   entity_type text NOT NULL CHECK (entity_type IN ('campaign','adset','ad')),
   entity_id text NOT NULL,

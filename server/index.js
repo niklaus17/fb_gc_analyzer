@@ -4,10 +4,12 @@ import { dirname, join } from 'node:path';
 import { getConfig } from './config.js';
 import { pool } from './db.js';
 import { runManualSync } from './meta.js';
+import { importGcCsv } from './getcourse.js';
 
 const app = express();
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 app.use(express.json());
+app.use(express.text({ type: ['text/*', 'application/csv', 'text/csv'], limit: '20mb' }));
 app.use(express.static(root));
 
 app.get('/api/health', async (_request, response) => {
@@ -44,6 +46,35 @@ app.get('/api/report', async (request, response) => {
     account.portfolio_id || metaBusinessPortfolioId,
     { id: account.portfolio_id || metaBusinessPortfolioId, name: account.portfolio_name || metaBusinessPortfolioName },
   ])));
+
+  const gcRows = await pool.query(`WITH lead_base AS (
+    SELECT lower(email) AS email, COALESCE(lead_date, created_at::date) AS lead_date, utm_campaign, utm_content, utm_term
+    FROM gc_leads WHERE COALESCE(lead_date, created_at::date) BETWEEN $1 AND $2
+  ), order_stats AS (
+    SELECT lower(o.email) AS email, COUNT(*)::int AS orders,
+      MAX(CASE WHEN o.paid_amount>0 OR lower(o.status) LIKE '%finalizat%' THEN 1 ELSE 0 END)::int AS paid,
+      COALESCE(SUM(o.paid_amount),0)::float AS revenue
+    FROM gc_orders o GROUP BY lower(o.email)
+  ), event_stats AS (
+    SELECT lower(email) AS email,
+      MAX(CASE WHEN event_type='l1in' THEN 1 ELSE 0 END)::int AS l1in,
+      MAX(CASE WHEN event_type='l1sent' THEN 1 ELSE 0 END)::int AS l1sent,
+      MAX(CASE WHEN event_type='graduates' THEN 1 ELSE 0 END)::int AS graduates
+    FROM gc_events GROUP BY lower(email)
+  )
+  SELECT COALESCE(utm_campaign,'') AS campaign_name,COALESCE(utm_content,'') AS adset_name,COALESCE(utm_term,'') AS ad_name,
+    COUNT(DISTINCT lead_base.email)::int AS leads_gc,
+    COALESCE(SUM(COALESCE(event_stats.l1in,0)),0)::int AS l1in,
+    COALESCE(SUM(COALESCE(event_stats.l1sent,0)),0)::int AS l1sent,
+    COALESCE(SUM(COALESCE(event_stats.graduates,0)),0)::int AS graduates,
+    COALESCE(SUM(COALESCE(order_stats.orders,0)),0)::int AS orders,
+    COUNT(DISTINCT CASE WHEN COALESCE(order_stats.paid,0)>0 THEN lead_base.email END)::int AS paid,
+    COALESCE(SUM(COALESCE(order_stats.revenue,0)),0)::float AS revenue
+  FROM lead_base
+  LEFT JOIN order_stats ON order_stats.email=lead_base.email
+  LEFT JOIN event_stats ON event_stats.email=lead_base.email
+  GROUP BY COALESCE(utm_campaign,''),COALESCE(utm_content,''),COALESCE(utm_term,'')`, [from, to]);
+  const gcByPath = new Map(gcRows.rows.map((row) => [[row.campaign_name,row.adset_name,row.ad_name].join('||'), row]));
 
   const rows = await pool.query(`WITH base AS (
     SELECT account_id,ad_id,COALESCE(SUM(spend),0)::float AS spend,COALESCE(SUM(leads),0)::int AS leads
@@ -83,7 +114,13 @@ app.get('/api/report', async (request, response) => {
     });
     campaign.adsets.get(row.adset_id).children.push({
       id: row.ad_id, accountId: row.account_id, name: row.ad_name, spend: row.spend,
-      leads: row.leads, l1in: 0, l1sent: 0, graduates: 0, orders: 0, paid: 0, revenue: 0,
+      leadsFb: row.leads, leadsGc: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.leads_gc || 0),
+      l1in: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.l1in || 0),
+      l1sent: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.l1sent || 0),
+      graduates: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.graduates || 0),
+      orders: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.orders || 0),
+      paid: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.paid || 0),
+      revenue: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.revenue || 0),
       sub_16: row.sub_16, '16_17': 0, '18_24': row['18_24'], '25_34': row['25_34'],
       '35_44': row['35_44'], '45_plus': row['45_plus'],
     });
@@ -94,6 +131,14 @@ app.get('/api/report', async (request, response) => {
   }));
 
   response.json({ source: 'meta', from, to, portfolios, accounts, campaigns });
+});
+
+app.post('/api/gc/import/:kind', async (request, response) => {
+  try {
+    const text = typeof request.body === 'string' ? request.body : '';
+    if (!text.trim()) return response.status(400).json({ error: 'CSV-ul este gol.' });
+    response.json({ ok: true, kind: request.params.kind, ...await importGcCsv(request.params.kind, text) });
+  } catch (error) { response.status(400).json({ error: error.message }); }
 });
 
 app.post('/api/meta/sync', async (request, response) => {

@@ -14,26 +14,40 @@
 <body>
     <header class="topbar"><a class="brand" href="./"><span class="brand-icon">▤</span> campaign<span
                 class="brand-light">sheet</span></a><span class="workspace">Spațiul meu <span>/</span> Analiză
-            campanii</span><span class="demo"><i></i> Date demonstrative</span><span class="avatar">N</span></header>
-    <main>
+            campanii</span><nav class="topnav"><button id="nav-dashboard" class="active" type="button">Dashboard</button><button id="nav-data" type="button">Date</button></nav><span class="demo"><i></i> Date demonstrative</span><span class="avatar">N</span></header>
+    <main id="dashboard-page" class="app-page">
         <div class="page-heading">
             <div>
                 <div class="eyebrow">FACEBOOK ADS × GETCOURSE</div>
                 <h1>Analiză campanii</h1>
                 <p>De la primul lead la comanda plătită. Toate cifrele, într-un singur loc.</p>
             </div>
-            <div class="report-controls"><div class="sync-control"><button id="sync-meta" class="sync-button"><span>↻</span> Actualizează din Facebook</button><small id="sync-status" role="status">Backend local în așteptare</small></div><button id="accounts-button" class="account-picker" aria-haspopup="dialog" aria-controls="accounts-dialog"><span class="account-icon">▣</span><span><small>CONTURI PUBLICITARE</small><strong id="accounts-summary">2 conturi selectate</strong><span id="accounts-context">Webcase · USD</span></span><span>⌄</span></button>
-            <div class="period"><button id="date-range-button" class="date-range-button" type="button" aria-haspopup="dialog" aria-controls="date-dialog"><span id="date-preset-label">Custom</span><strong id="date-range-label">Jun 1 – 30, 2026</strong><span>⌄</span></button><small>Date demo disponibile: 1–30 iunie 2026</small><span id="period-error" role="alert"></span></div></div>
+            <div class="report-controls">
+                <button id="accounts-button" class="account-picker" aria-haspopup="dialog"
+                    aria-controls="accounts-dialog"><span class="account-icon">▣</span><span><small>CONTURI
+                            PUBLICITARE</small><strong id="accounts-summary">2 conturi selectate</strong><span
+                            id="accounts-context">Webcase · USD</span></span><span>⌄</span></button>
+                <div class="period"><button id="date-range-button" class="date-range-button" type="button"
+                        aria-haspopup="dialog" aria-controls="date-dialog"><span
+                            id="date-preset-label">Custom</span><strong id="date-range-label">Jun 1 – 30,
+                            2026</strong><span>⌄</span></button><span id="period-error" role="alert"></span></div>
+            </div>
         </div>
         <section class="metrics" id="metrics" aria-label="Rezumat selecție"></section>
         <section class="sheet" aria-label="Foaie de analiză">
             <div class="sheet-top">
                 <div class="sheet-title"><span class="sheet-icon">▤</span><strong>Performanță campanii</strong><span
-                        class="count" id="campaign-count"></span></div><span class="currency">Monedă: <strong id="currency">USD</strong><small>Din conturile selectate</small></span>
+                        class="count" id="campaign-count"></span></div><span class="currency">Monedă: <strong
+                        id="currency">USD</strong><small>Din conturile selectate</small></span>
             </div>
             <div class="toolbar">
                 <div class="filters"><button data-panel="entities" id="entities-button">☷ <span>Campanii și
-                            reclame</span><span class="button-count" id="selection-count"></span>⌄</button><label class="active-filter">Tag <select id="tag-filter"><option value="all">Toate elementele</option><option value="exclude">Ascunde inactive</option><option value="only">Doar inactive</option></select></label></div>
+                            reclame</span><span class="button-count" id="selection-count"></span>⌄</button><label
+                        class="active-filter">Tag <select id="tag-filter">
+                            <option value="all">Toate elementele</option>
+                            <option value="exclude">Ascunde inactive</option>
+                            <option value="only">Doar inactive</option>
+                        </select></label></div>
                 <div class="view-controls"><button id="collapse-all" class="quiet">⊟ Restrânge tot</button><button
                         data-panel="columns" id="columns-button">▥ Coloane <span class="button-count"
                             id="column-count"></span>⌄</button></div>
@@ -58,23 +72,69 @@
         <div class="bottom-note"><span>ⓘ Date fictive pentru explorarea designului. Nicio sursă de date
                 conectată.</span><button id="formulas-button">Cum se calculează indicatorii ↗</button></div>
     </main>
+    <main id="data-page" class="app-page hidden">
+        <div class="page-heading">
+            <div><div class="eyebrow">IMPORTURI</div><h1>Date</h1><p>Actualizează Facebook Ads și încarcă fișiere CSV din GetCourse.</p></div>
+        </div>
+        <section class="sheet import-sheet">
+            <div class="sheet-top"><div class="sheet-title"><span class="sheet-icon">↻</span><strong>Facebook Ads</strong></div></div>
+            <div class="import-grid"><div><p>Importă performanța Meta pentru perioada selectată în dashboard.</p></div><div class="sync-control"><button id="sync-meta" class="sync-button"><span>↻</span> Actualizează din Facebook</button><small id="sync-status" role="status">Backend local în așteptare</small></div></div>
+        </section>
+        <section class="sheet import-sheet">
+            <div class="sheet-top"><div class="sheet-title"><span class="sheet-icon">⇧</span><strong>GetCourse CSV</strong></div></div>
+            <div class="upload-list">
+                <label class="upload-card"><span><strong>Leaduri GC</strong><small>CSV curs gratuit, cu UTM-uri.</small></span><input type="file" data-gc-upload="leads" accept=".csv,text/csv"></label>
+                <label class="upload-card"><span><strong>Comenzi GC</strong><small>Comenzi create și plătite; plătit = clienți unici.</small></span><input type="file" data-gc-upload="orders" accept=".csv,text/csv"></label>
+                <label class="upload-card"><span><strong>L1 intrat</strong><small>CSV/listă emailuri.</small></span><input type="file" data-gc-upload="l1in" accept=".csv,text/csv"></label>
+                <label class="upload-card"><span><strong>L1 trimis</strong><small>CSV/listă emailuri.</small></span><input type="file" data-gc-upload="l1sent" accept=".csv,text/csv"></label>
+                <label class="upload-card"><span><strong>Absolvit</strong><small>CSV/listă emailuri.</small></span><input type="file" data-gc-upload="graduates" accept=".csv,text/csv"></label>
+            </div>
+            <div class="import-status" id="gc-import-status" role="status">Alege un fișier CSV pentru import.</div>
+        </section>
+    </main>
+
     <dialog id="date-dialog" aria-labelledby="date-title">
         <div class="date-dialog-layout">
             <div class="date-presets" id="date-presets" aria-label="Preseturi perioadă"></div>
             <div class="date-calendar-panel">
-                <div class="dialog-header date-dialog-header"><div><h2 id="date-title">Perioadă raport</h2><p>Alege intervalul pentru datele din dashboard.</p></div><button class="close" aria-label="Închide">×</button></div>
-                <div class="date-input-row"><label>Start date<input type="date" id="picker-from"></label><span>—</span><label>End date<input type="date" id="picker-to"></label></div>
-                <div class="calendar-nav"><button id="calendar-prev" type="button" aria-label="Luna precedentă">‹</button><strong id="calendar-title"></strong><button id="calendar-next" type="button" aria-label="Luna următoare">›</button></div>
-                <div class="calendar-weekdays"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+                <div class="dialog-header date-dialog-header">
+                    <div>
+                        <h2 id="date-title">Perioadă raport</h2>
+                        <p>Alege intervalul pentru datele din dashboard.</p>
+                    </div><button class="close" aria-label="Închide">×</button>
+                </div>
+                <div class="date-input-row"><label>Start date<input type="date"
+                            id="picker-from"></label><span>—</span><label>End date<input type="date"
+                            id="picker-to"></label></div>
+                <div class="calendar-nav"><button id="calendar-prev" type="button"
+                        aria-label="Luna precedentă">‹</button><strong id="calendar-title"></strong><button
+                        id="calendar-next" type="button" aria-label="Luna următoare">›</button></div>
+                <div class="calendar-weekdays">
+                    <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+                </div>
                 <div id="calendar-grid" class="calendar-grid"></div>
-                <div class="dialog-footer date-footer"><span id="date-selection-note"></span><button id="date-cancel" type="button">Cancel</button><button id="date-apply" class="primary" type="button">Apply</button></div>
+                <div class="dialog-footer date-footer"><span id="date-selection-note"></span><button id="date-cancel"
+                        type="button">Cancel</button><button id="date-apply" class="primary"
+                        type="button">Apply</button></div>
             </div>
         </div>
     </dialog>
     <dialog id="accounts-dialog" aria-labelledby="accounts-title">
-        <div class="dialog-header"><div><h2 id="accounts-title">Conturi publicitare</h2><p>Alege unul sau mai multe conturi pentru raport.</p></div><button class="close" aria-label="Închide">×</button></div>
-        <div class="dialog-body"><p class="account-help">Poți combina conturi cu aceeași monedă, inclusiv din portofolii diferite. Pentru altă monedă, deselectează întâi conturile curente.</p><button id="clear-accounts" class="quiet">Deselectează conturile</button><div id="account-options"></div><p id="account-error" role="alert"></p></div>
-        <div class="dialog-footer"><span id="account-selection-note" aria-live="polite"></span><button class="primary close">Gata</button></div>
+        <div class="dialog-header">
+            <div>
+                <h2 id="accounts-title">Conturi publicitare</h2>
+                <p>Alege unul sau mai multe conturi pentru raport.</p>
+            </div><button class="close" aria-label="Închide">×</button>
+        </div>
+        <div class="dialog-body">
+            <p class="account-help">Poți combina conturi cu aceeași monedă, inclusiv din portofolii diferite. Pentru
+                altă monedă, deselectează întâi conturile curente.</p><button id="clear-accounts"
+                class="quiet">Deselectează conturile</button>
+            <div id="account-options"></div>
+            <p id="account-error" role="alert"></p>
+        </div>
+        <div class="dialog-footer"><span id="account-selection-note" aria-live="polite"></span><button
+                class="primary close">Gata</button></div>
     </dialog>
     <dialog id="entities-dialog">
         <div class="dialog-header">
@@ -85,8 +145,14 @@
         </div>
         <div class="bulk"><button id="select-all">Selectează tot</button><button id="select-none">Deselectează
                 tot</button></div>
-        <p class="tag-help">Tagul unui părinte se aplică la filtrare și elementelor din interior. Tagurile se păstrează în acest browser.</p><p id="storage-note" role="status" class="tag-help"></p>
-        <div class="entity-tools"><button id="expand-entities" type="button">⊞ Desfășoară</button><label class="entity-account-filter"><span class="sr-only">Filtrează după cont</span><select id="entity-account-filter"></select></label><label class="entity-search"><span class="sr-only">Caută campanii și adseturi</span><input id="entity-search" type="search" placeholder="Caută campanie sau adset"></label></div>
+        <p class="tag-help">Tagul unui părinte se aplică la filtrare și elementelor din interior. Tagurile se păstrează
+            în acest browser.</p>
+        <p id="storage-note" role="status" class="tag-help"></p>
+        <div class="entity-tools"><button id="expand-entities" type="button">⊞ Desfășoară</button><label
+                class="entity-account-filter"><span class="sr-only">Filtrează după cont</span><select
+                    id="entity-account-filter"></select></label><label class="entity-search"><span class="sr-only">Caută
+                    campanii și adseturi</span><input id="entity-search" type="search"
+                    placeholder="Caută campanie sau adset"></label></div>
         <div id="entity-options" class="dialog-body"></div>
         <div class="dialog-footer"><span>Selecția se aplică imediat.</span><button class="primary close">Gata</button>
         </div>
@@ -112,7 +178,7 @@
         <div class="dialog-body formulas">
             <dl>
                 <dt>Cost per Lead</dt>
-                <dd>Spend ÷ Leads</dd>
+                <dd>Spend ÷ Leads GC</dd>
                 <dt>Cost per L1 trimis</dt>
                 <dd>Spend ÷ L1 trimis</dd>
                 <dt>Cost per Absolvit</dt>
@@ -124,7 +190,7 @@
                 <dt>ROAS</dt>
                 <dd>Venit din comenzi plătite ÷ Spend</dd>
                 <dt>Lead → Plătit %</dt>
-                <dd>Com plătită ÷ Leads × 100</dd>
+                <dd>Com plătită ÷ Leads GC × 100</dd>
             </dl>
             <p>Vârsta reprezintă numărul de leaduri din fiecare grupă. Venitul este fictiv și disponibil ca o coloană
                 separată. Dacă numitorul este zero, afișăm „—”.</p>

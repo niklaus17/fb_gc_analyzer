@@ -1,11 +1,11 @@
 'use strict';
 const columns = [
-  ['spend','Spend','money','Rezultate'],['leads','Leads','number','Rezultate'],['cpl','Cost per Lead','money','Indicatori calculați'],['l1in','L1 intrat','number','Rezultate'],['l1sent','L1 trimis','number','Rezultate'],['graduates','Absolvit','number','Rezultate'],['orders','Com creată','number','Rezultate'],['paid','Com plătită','number','Rezultate'],['revenue','Venit','money','Rezultate'],
+  ['spend','Spend','money','Rezultate'],['leadsGc','Leads GC','number','Rezultate'],['cpl','Cost per Lead','money','Indicatori calculați'],['leadsFb','Leads FB','number','Facebook Ads'],['l1in','L1 intrat','number','Rezultate'],['l1sent','L1 trimis','number','Rezultate'],['graduates','Absolvit','number','Rezultate'],['orders','Com creată','number','Rezultate'],['paid','Com plătită','number','Rezultate'],['revenue','Venit','money','Rezultate'],
   ['sub_16','sub_16','number','Vârstă · număr de leaduri'],['16_17','16_17','number','Vârstă · număr de leaduri'],['18_24','18_24','number','Vârstă · număr de leaduri'],['25_34','25_34','number','Vârstă · număr de leaduri'],['35_44','35_44','number','Vârstă · număr de leaduri'],['45_plus','45_plus','number','Vârstă · număr de leaduri'],
   ['cpl1','Cost per L1 trimis','money','Indicatori calculați'],['cpgrad','Cost per Absolvit','money','Indicatori calculați'],['gradRate','Rata de absolvire','percent','Indicatori calculați'],['cppaid','Cost per Com plătită','money','Indicatori calculați'],['roas','ROAS','ratio','Indicatori calculați'],['paidRate','Lead → Plătit %','percent','Indicatori calculați']
 ];
 const ageKeys=['sub_16','16_17','18_24','25_34','35_44','45_plus'];
-const baseKeys=['spend','leads','l1in','l1sent','graduates','orders','paid','revenue',...ageKeys];
+const baseKeys=['spend','leadsGc','leadsFb','l1in','l1sent','graduates','orders','paid','revenue',...ageKeys];
 let portfolios=[{id:'demo-webcase',name:'Webcase · portofoliu demo'},{id:'demo-studio',name:'Design Studio · portofoliu demo'}];
 let accounts=[
  {id:'demo-account-01',portfolioId:'demo-webcase',name:'Webcase Community · Moldova',currency:'USD'},
@@ -24,7 +24,7 @@ let campaigns=[
   {id:'a4',name:'BROAD_RO_18_34_DESIGN',children:['Video_rezultate','Un_skill_nou','inainte_sa_platesti'].map((name,i)=>creative('u'+i,name,i+11))},
   {id:'a5',name:'RETARGETING_RO_30_ZILE',children:['Poveste_absolvent','Ultimele_locuri'].map((name,i)=>creative('v'+i,name,i+14))}]},
  {id:'c3',name:'AN_Leads_MD_Retargeting_05_Iun',children:[{id:'a6',name:'WARM_MD_ENGAGEMENT',children:['Ad_testimonial','curs_gratuit_pink'].map((name,i)=>creative('w'+i,name,i+16))}]}];
-function creative(id,name,i){const leads=48+(i*23)%137;const l1in=Math.floor(leads*.78);const l1sent=Math.floor(l1in*.83);const graduates=Math.floor(l1sent*(.49+(i%4)*.06));const orders=Math.floor(graduates*.53);const paid=Math.floor(orders*.68);const ages=[.03,.09,.32,.30,.18].map(v=>Math.floor(leads*v));ages.push(leads-ages.reduce((a,b)=>a+b,0));return {id,name,spend:Math.round((leads*(2.4+(i%5)*.37))*100)/100,leads,l1in,l1sent,graduates,orders,paid,revenue:paid*(89+(i%3)*20),...Object.fromEntries(ageKeys.map((k,j)=>[k,ages[j]]))};}
+function creative(id,name,i){const leads=48+(i*23)%137;const l1in=Math.floor(leads*.78);const l1sent=Math.floor(l1in*.83);const graduates=Math.floor(l1sent*(.49+(i%4)*.06));const orders=Math.floor(graduates*.53);const paid=Math.floor(orders*.68);const ages=[.03,.09,.32,.30,.18].map(v=>Math.floor(leads*v));ages.push(leads-ages.reduce((a,b)=>a+b,0));return {id,name,spend:Math.round((leads*(2.4+(i%5)*.37))*100)/100,leadsGc:leads,leadsFb:Math.round(leads*.92),l1in,l1sent,graduates,orders,paid,revenue:paid*(89+(i%3)*20),...Object.fromEntries(ageKeys.map((k,j)=>[k,ages[j]]))};}
 campaigns.push({id:'c4',name:'DS_Leads_Europa_01_Iun',children:[{id:'a7',name:'BROAD_EU_DESIGN',children:[creative('eu1','Video_design_europa',18),creative('eu2','Curs_design_europa',19)]}]});
 campaigns.push({id:'c5',name:'DS_Leads_International_01_Iun',children:[{id:'a8',name:'BROAD_INT_DESIGN',children:[creative('int1','Video_design_global',20)]}]});
 // Every level carries account ownership. Use account + entity IDs as stable keys.
@@ -35,7 +35,7 @@ const leaves=node=>node.children?node.children.flatMap(leaves):[node];
 const selected=new Set(campaigns.flatMap(leaves).map(x=>x.id));
 const expanded=new Set(allNodes.filter(n=>['c1','c2','c3','a1'].includes(n.sourceId)).map(n=>n.id));
 const entityExpanded=new Set();
-const visible=new Set(['spend','leads','cpl','l1in','l1sent','graduates','orders','paid','cpl1','cpgrad','gradRate','cppaid','roas','paidRate']);
+const visible=new Set(['spend','leadsGc','cpl','l1in','l1sent','graduates','orders','paid','cpl1','cpgrad','gradRate','cppaid','roas','paidRate']);
 let tagFilter='all';
 let currency='USD';
 let dateFrom='2026-06-01',dateTo='2026-06-30';
@@ -50,7 +50,7 @@ function savePreferences(){try{localStorage.setItem('campaignsheet.preferences',
 // Deterministic daily observations; nested funnel events share their lead date.
 for(const [index,ad] of campaigns.flatMap(leaves).entries()){
  ad.daily=Array.from({length:30},(_,d)=>({date:`2026-06-${String(d+1).padStart(2,'0')}`,...Object.fromEntries(baseKeys.map(k=>[k,0]))}));
- for(let i=0;i<ad.leads;i++){
+ for(let i=0;i<ad.leadsGc;i++){
   const day=ad.daily[(i*7+index*3)%30];day.leads++;
   for(const key of ['l1in','l1sent','graduates','orders','paid'])if(i<ad[key])day[key]++;
   let end=0;for(const key of ageKeys){end+=ad[key];if(i<end){day[key]++;break;}}
@@ -77,12 +77,12 @@ function datePresets(){const today=todayIso(),yesterday=shiftDays(today,-1),week
  ['Custom',dateFrom,dateTo],['Today',today,today],['Yesterday',yesterday,yesterday],['This week',weekStart,today],['Last 7 days',shiftDays(today,-6),today],['Last week',lastWeekStart,lastWeekEnd],['Last 14 days',shiftDays(today,-13),today],['This month',thisMonthStart,today],['Last 30 days',shiftDays(today,-29),today],['Last month',lastMonthDate,monthEnd(lastMonthDate)],['All time','2026-06-01',today]
 ];}
 function divide(a,b,m=1){return b ? a/b*m : null;}
-function aggregate(rows){const s=Object.fromEntries(baseKeys.map(k=>[k,rows.reduce((sum,r)=>sum+Number(r[k]||0),0)]));return {...s,cpl:divide(s.spend,s.leads),cpl1:divide(s.spend,s.l1sent),cpgrad:divide(s.spend,s.graduates),gradRate:divide(s.graduates,s.l1sent,100),cppaid:divide(s.spend,s.paid),roas:divide(s.revenue,s.spend),paidRate:divide(s.paid,s.leads,100)};}
+function aggregate(rows){const s=Object.fromEntries(baseKeys.map(k=>[k,rows.reduce((sum,r)=>sum+Number(r[k]||0),0)]));return {...s,cpl:divide(s.spend,s.leadsGc),cpl1:divide(s.spend,s.l1sent),cpgrad:divide(s.spend,s.graduates),gradRate:divide(s.graduates,s.l1sent,100),cppaid:divide(s.spend,s.paid),roas:divide(s.revenue,s.spend),paidRate:divide(s.paid,s.leadsGc,100)};}
 function format(v,type){if(v===null)return '—';return type==='money'?decimal.format(v)+' '+currency:type==='percent'?decimal.format(v)+'%':type==='ratio'?decimal.format(v)+'×':number.format(v);}
 function filteredLeaves(node,parentInactive=false){if(!selectedAccounts.has(node.accountId))return [];const inactive=parentInactive||inactiveTags.has(node.id);if(tagFilter==='exclude'&&inactive)return [];return node.children?node.children.flatMap(n=>filteredLeaves(n,inactive)):selected.has(node.id)&&(tagFilter!=='only'||inactive)?[periodData(node)].filter(Boolean):[];}
 function cellValues(s){return columns.filter(c=>visible.has(c[0])).map(([key,label,type,group])=>`<td class="${group==='Indicatori calculați'?'derived ':''}${key==='roas'&&s[key]>=1?'roas-good':''}">${format(s[key],type)}</td>`).join('');}
 function accountLabel(accountId){return accountById(accountId)?.name||accountId||'Cont necunoscut';}
-function render(){renderAccountSummary();const rows=campaigns.flatMap(c=>filteredLeaves(c));const total=aggregate(rows);const cards=[['Spend',format(total.spend,'money'),'Buget cheltuit','↗'],['Leads',format(total.leads,'number'),'Leaduri în selecția curentă','♧'],['Absolvit',format(total.graduates,'number'),format(total.gradRate,'percent')+' din L1 trimis','✓'],['Com plătită',format(total.paid,'number'),format(total.revenue,'money')+' venit','▣'],['ROAS',format(total.roas,'ratio'),'Venit / buget cheltuit','↗']];
+function render(){renderAccountSummary();const rows=campaigns.flatMap(c=>filteredLeaves(c));const total=aggregate(rows);const cards=[['Spend',format(total.spend,'money'),'Buget cheltuit','↗'],['Leads GC',format(total.leadsGc,'number'),'Leaduri GetCourse în selecția curentă','♧'],['Absolvit',format(total.graduates,'number'),format(total.gradRate,'percent')+' din L1 trimis','✓'],['Com plătită',format(total.paid,'number'),format(total.revenue,'money')+' venit','▣'],['ROAS',format(total.roas,'ratio'),'Venit / buget cheltuit','↗']];
 $('metrics').innerHTML=cards.map(([label,value,detail,icon])=>`<article class="metric"><div class="metric-label">${label}<span>${icon}</span></div><div class="metric-value">${value}</div><div class="metric-detail">${detail}</div></article>`).join('');
 $('table-head').innerHTML=`<tr><th scope="col"><div class="hierarchy-head">Campanie / Adset / Creative <small>DENUMIRE</small></div></th>${columns.filter(c=>visible.has(c[0])).map(c=>`<th scope="col" title="${c[3]}">${c[1]}</th>`).join('')}</tr>`;
 let html='',campaignCount=0,adsetCount=0;
@@ -115,6 +115,10 @@ $('date-presets').addEventListener('click',e=>{const button=e.target.closest('[d
 $('calendar-grid').addEventListener('click',e=>{const button=e.target.closest('[data-date]');if(!button)return;const date=button.dataset.date;if(!pickingRange){pendingFrom=date;pendingTo=date;pickingRange=true;}else{if(date<pendingFrom){pendingTo=pendingFrom;pendingFrom=date;}else pendingTo=date;pickingRange=false;}datePreset='Custom';renderDatePicker();});
 $('picker-from').addEventListener('change',e=>{pendingFrom=e.target.value;datePreset='Custom';pickingRange=false;calendarMonth=monthStart(pendingFrom||calendarMonth);renderDatePicker();});
 $('picker-to').addEventListener('change',e=>{pendingTo=e.target.value;datePreset='Custom';pickingRange=false;renderDatePicker();});
+
+$('nav-dashboard').onclick=()=>{document.querySelectorAll('.app-page').forEach(p=>p.classList.add('hidden'));$('dashboard-page').classList.remove('hidden');$('nav-dashboard').classList.add('active');$('nav-data').classList.remove('active');};
+$('nav-data').onclick=()=>{document.querySelectorAll('.app-page').forEach(p=>p.classList.add('hidden'));$('data-page').classList.remove('hidden');$('nav-data').classList.add('active');$('nav-dashboard').classList.remove('active');};
+document.querySelectorAll('[data-gc-upload]').forEach(input=>input.addEventListener('change',async()=>{const file=input.files?.[0];if(!file)return;const status=$('gc-import-status');status.textContent='Import '+file.name+'...';try{const response=await fetch('/api/gc/import/'+input.dataset.gcUpload,{method:'POST',headers:{'Content-Type':'text/csv'},body:await file.text()});const result=await response.json();if(!response.ok)throw new Error(result.error||'Importul a eșuat.');status.textContent='Importat '+result.imported+' rânduri din '+file.name+'.';await loadReport();render();}catch(error){status.textContent=error.message;}finally{input.value='';}}));
 $('sync-meta').addEventListener('click',async()=>{const button=$('sync-meta'),status=$('sync-status');button.disabled=true;status.textContent='Import în desfășurare…';try{const response=await fetch('/api/meta/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:dateFrom,to:dateTo})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Importul a eșuat.');await loadReport();status.textContent=`Actualizat · ${result.rowsImported} rânduri importate`;status.className='sync-success';}catch(error){status.textContent=location.hostname.endsWith('github.io')?'Importul este disponibil din aplicația locală.':error.message;status.className='sync-error';}finally{button.disabled=false;}});
 $('expand-entities').onclick=()=>{if(entityExpanded.size){entityExpanded.clear();}else allNodes.filter(n=>n.children).forEach(n=>entityExpanded.add(n.id));renderEntities();};
 $('entity-search').addEventListener('input',e=>{entitySearch=e.target.value;renderEntities();});
