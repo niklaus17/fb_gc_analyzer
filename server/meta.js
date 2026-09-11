@@ -40,6 +40,7 @@ async function allPages(path, params) {
 async function insights(accountId, from, to, breakdowns) {
   const params = {
     level: 'ad', time_increment: 1, time_range: { since: from, until: to }, limit: 500,
+    action_attribution_windows: ['7d_click'],
     fields: 'account_id,campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,spend,impressions,clicks,actions,date_start',
   };
   if (breakdowns) params.breakdowns = breakdowns;
