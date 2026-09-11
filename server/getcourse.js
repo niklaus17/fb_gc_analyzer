@@ -2,14 +2,16 @@ import { withTransaction } from './db.js';
 
 const EVENT_TYPES = new Set(['l1in', 'l1sent', 'graduates']);
 
-function normalizeKey(value = '') { return value.toLowerCase().replace(/\uFEFF/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''); }
+function normalizeKey(value = '') { return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\uFEFF/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''); }
 function parseCsv(text) {
+  const firstLine = text.split(/\r?\n/, 1)[0] || '';
+  const delimiter = firstLine.includes(',') ? ',' : firstLine.includes(';') ? ';' : '\t';
   const rows = []; let row = [], cell = '', quoted = false;
   for (let i = 0; i < text.length; i++) {
     const char = text[i], next = text[i + 1];
     if (quoted && char === '"' && next === '"') { cell += '"'; i++; continue; }
     if (char === '"') { quoted = !quoted; continue; }
-    if (!quoted && (char === ',' || char === ';' || char === '\t')) { row.push(cell.trim()); cell = ''; continue; }
+    if (!quoted && char === delimiter) { row.push(cell.trim()); cell = ''; continue; }
     if (!quoted && (char === '\n' || char === '\r')) { if (char === '\r' && next === '\n') i++; row.push(cell.trim()); cell = ''; if (row.some(Boolean)) rows.push(row); row = []; continue; }
     cell += char;
   }
@@ -17,7 +19,7 @@ function parseCsv(text) {
 }
 function asRecords(rows, fallbackHeaders) {
   if (!rows.length) return []; const first = rows[0].map(normalizeKey);
-  const hasHeader = first.some((key) => ['email','user_email','number','status','created_at','utm_campaign'].includes(key));
+  const hasHeader = first.some((key) => ['email','user_email','number','status','created_at','data_crearii','utm_campaign'].includes(key));
   const headers = hasHeader ? first : fallbackHeaders;
   return (hasHeader ? rows.slice(1) : rows).map((row) => Object.fromEntries(headers.map((key, index) => [key, row[index] || ''])));
 }
@@ -49,7 +51,7 @@ async function importLeads(records) {
     for (const record of records) {
       const email = cleanEmail(pick(record, ['email','user_email','user_email_'])); const number = pick(record, ['gc_order_number','number','order_number','id']) || (email + ':' + pick(record, ['created_at','lead_date']));
       if (!email || !number) continue;
-      await client.query('INSERT INTO gc_leads(email,gc_order_number,created_at,lead_date,product_name,utm_source,utm_medium,utm_campaign,utm_content,utm_term,imported_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now()) ON CONFLICT(gc_order_number) DO UPDATE SET email=EXCLUDED.email,created_at=EXCLUDED.created_at,lead_date=EXCLUDED.lead_date,product_name=EXCLUDED.product_name,utm_source=EXCLUDED.utm_source,utm_medium=EXCLUDED.utm_medium,utm_campaign=EXCLUDED.utm_campaign,utm_content=EXCLUDED.utm_content,utm_term=EXCLUDED.utm_term,imported_at=now()', [email, number, parseDate(pick(record, ['created_at','created'])), parseDateOnly(pick(record, ['lead_date','date'])), pick(record, ['product_name','product','positions']), pick(record, ['utm_source','source']), pick(record, ['utm_medium','medium']), pick(record, ['utm_campaign','campaign']), pick(record, ['utm_content','content']), pick(record, ['utm_term','term'])]);
+      await client.query('INSERT INTO gc_leads(email,gc_order_number,created_at,lead_date,product_name,utm_source,utm_medium,utm_campaign,utm_content,utm_term,imported_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now()) ON CONFLICT(gc_order_number) DO UPDATE SET email=EXCLUDED.email,created_at=EXCLUDED.created_at,lead_date=EXCLUDED.lead_date,product_name=EXCLUDED.product_name,utm_source=EXCLUDED.utm_source,utm_medium=EXCLUDED.utm_medium,utm_campaign=EXCLUDED.utm_campaign,utm_content=EXCLUDED.utm_content,utm_term=EXCLUDED.utm_term,imported_at=now()', [email, number, parseDate(pick(record, ['created_at','created','data_crearii'])), parseDateOnly(pick(record, ['lead_date','date','data_formatata'])), pick(record, ['product_name','product','positions','comanda_detalii']), pick(record, ['utm_source','source']), pick(record, ['utm_medium','medium']), pick(record, ['utm_campaign','campaign']), pick(record, ['utm_content','content']), pick(record, ['utm_term','term'])]);
       imported++;
     }
   }); return { imported };
@@ -59,7 +61,7 @@ async function importOrders(records) {
     for (const record of records) {
       const email = cleanEmail(pick(record, ['email','user_email','user_email_'])); const number = pick(record, ['number','order_number','gc_order_number']); if (!email || !number) continue;
       const cost = parseMoney(pick(record, ['cost_money','cost','price'])); const paid = parseMoney(pick(record, ['payed_money','paid_money','paid','payed']));
-      await client.query('INSERT INTO gc_orders(order_number,email,status,positions,cost_amount,paid_amount,currency,created_at,imported_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,now()) ON CONFLICT(order_number) DO UPDATE SET email=EXCLUDED.email,status=EXCLUDED.status,positions=EXCLUDED.positions,cost_amount=EXCLUDED.cost_amount,paid_amount=EXCLUDED.paid_amount,currency=EXCLUDED.currency,created_at=EXCLUDED.created_at,imported_at=now()', [number, email, pick(record, ['status']), pick(record, ['positions','product_name','product']), cost.amount, paid.amount, paid.currency || cost.currency, parseDate(pick(record, ['created_at','created']))]);
+      await client.query('INSERT INTO gc_orders(order_number,email,status,positions,cost_amount,paid_amount,currency,created_at,imported_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,now()) ON CONFLICT(order_number) DO UPDATE SET email=EXCLUDED.email,status=EXCLUDED.status,positions=EXCLUDED.positions,cost_amount=EXCLUDED.cost_amount,paid_amount=EXCLUDED.paid_amount,currency=EXCLUDED.currency,created_at=EXCLUDED.created_at,imported_at=now()', [number, email, pick(record, ['status']), pick(record, ['positions','product_name','product']), cost.amount, paid.amount, paid.currency || cost.currency, parseDate(pick(record, ['created_at','created','data_crearii']))]);
       imported++;
     }
   }); return { imported };
