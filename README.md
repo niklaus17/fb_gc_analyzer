@@ -18,3 +18,25 @@ Conturile și portofoliile sunt demonstrative, fără ID-uri reale Facebook. Dat
 La integrarea reală, sursa trebuie să furnizeze ID-uri stabile de cont și entitate, moneda contului și datele zilnice. Venitul GetCourse trebuie asociat contului/campaniei și exprimat în aceeași monedă înainte de calcularea ROAS. Integrarea și conversia valutară nu sunt implementate în acest prototip.
 
 Verificări: `node tests/accounts.test.cjs`.
+
+## Backend local și PostgreSQL
+
+PostgreSQL 17 rulează local ca serviciu Homebrew. Baza proiectului se numește
+`fb_gc_analyzer`, iar schema se află în `db/schema.sql`.
+
+Pentru configurarea importului Facebook:
+
+1. Copiază valorile necesare în fișierul local `.env` (acesta nu ajunge în Git):
+   - `META_ACCESS_TOKEN` — tokenul System User;
+   - `META_AD_ACCOUNT_IDS` — unul sau mai multe ID-uri separate prin virgulă;
+   - `META_API_VERSION` — versiunea activă pentru aplicația Meta.
+2. Pornește aplicația cu `npm start`.
+3. Deschide `http://localhost:3000`, alege perioada și apasă „Actualizează din Facebook”.
+
+Importul salvează separat totalurile zilnice și breakdown-ul pe vârste. Repetarea
+aceluiași import actualizează rândurile existente prin cheia cont + reclamă + dată,
+fără să dubleze datele. Starea importurilor este păstrată în `sync_runs`.
+
+Pagina GitHub Pages rămâne o demonstrație statică. Importul și baza locală sunt
+disponibile numai prin `http://localhost:3000`, deoarece tokenul Meta nu trebuie
+expus în browser sau în repository.

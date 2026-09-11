@@ -1,0 +1,114 @@
+import { getConfig } from './config.js';
+import { pool, withTransaction } from './db.js';
+
+const LEAD_ACTIONS = new Set(['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead']);
+
+export function leadCount(actions = []) {
+  return actions.filter(({ action_type }) => LEAD_ACTIONS.has(action_type))
+    .reduce((sum, action) => sum + Number(action.value || 0), 0);
+}
+
+async function graph(path, params = {}) {
+  const { metaApiVersion, metaAccessToken } = getConfig();
+  if (!metaAccessToken) throw new Error('META_ACCESS_TOKEN lipsește din fișierul .env.');
+  const url = new URL(`https://graph.facebook.com/${metaApiVersion}/${path}`);
+  for (const [key, value] of Object.entries({ ...params, access_token: metaAccessToken })) {
+    url.searchParams.set(key, typeof value === 'string' ? value : JSON.stringify(value));
+  }
+  const response = await fetch(url);
+  const body = await response.json();
+  if (!response.ok || body.error) throw new Error(body.error?.message || `Meta API: HTTP ${response.status}.`);
+  return body;
+}
+
+async function allPages(path, params) {
+  const rows = [];
+  let body = await graph(path, params);
+  while (true) {
+    rows.push(...(body.data || []));
+    if (!body.paging?.next) return rows;
+    const response = await fetch(body.paging.next);
+    body = await response.json();
+    if (!response.ok || body.error) throw new Error(body.error?.message || 'Eroare la paginarea Meta API.');
+  }
+}
+
+async function insights(accountId, from, to, breakdowns) {
+  const params = {
+    level: 'ad', time_increment: 1, time_range: { since: from, until: to }, limit: 500,
+    fields: 'account_id,campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,spend,impressions,clicks,actions,date_start',
+  };
+  if (breakdowns) params.breakdowns = breakdowns;
+  return allPages(`${accountId}/insights`, params);
+}
+
+async function storeAccount(client, account, rows) {
+  const portfolio = account.business || { id: `account:${account.id}`, name: 'Fără Business Portfolio' };
+  await client.query(`INSERT INTO business_portfolios(id,name,updated_at) VALUES($1,$2,now())
+    ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,updated_at=now()`, [portfolio.id, portfolio.name]);
+  await client.query(`INSERT INTO ad_accounts(id,portfolio_id,name,currency,timezone_name,account_status,updated_at)
+    VALUES($1,$2,$3,$4,$5,$6,now()) ON CONFLICT(id) DO UPDATE SET portfolio_id=EXCLUDED.portfolio_id,
+    name=EXCLUDED.name,currency=EXCLUDED.currency,timezone_name=EXCLUDED.timezone_name,
+    account_status=EXCLUDED.account_status,updated_at=now()`,
+    [account.id, portfolio.id, account.name, account.currency, account.timezone_name, account.account_status]);
+  for (const row of rows) {
+    await client.query(`INSERT INTO campaigns(id,account_id,name,updated_at) VALUES($1,$2,$3,now())
+      ON CONFLICT(id) DO UPDATE SET account_id=EXCLUDED.account_id,name=EXCLUDED.name,updated_at=now()`,
+      [row.campaign_id, account.id, row.campaign_name]);
+    await client.query(`INSERT INTO adsets(id,account_id,campaign_id,name,updated_at) VALUES($1,$2,$3,$4,now())
+      ON CONFLICT(id) DO UPDATE SET account_id=EXCLUDED.account_id,campaign_id=EXCLUDED.campaign_id,name=EXCLUDED.name,updated_at=now()`,
+      [row.adset_id, account.id, row.campaign_id, row.adset_name]);
+    await client.query(`INSERT INTO ads(id,account_id,campaign_id,adset_id,name,updated_at) VALUES($1,$2,$3,$4,$5,now())
+      ON CONFLICT(id) DO UPDATE SET account_id=EXCLUDED.account_id,campaign_id=EXCLUDED.campaign_id,
+      adset_id=EXCLUDED.adset_id,name=EXCLUDED.name,updated_at=now()`,
+      [row.ad_id, account.id, row.campaign_id, row.adset_id, row.ad_name]);
+  }
+}
+
+async function storeBase(client, accountId, rows) {
+  for (const row of rows) await client.query(`INSERT INTO meta_ad_insights_daily
+    (account_id,ad_id,insight_date,spend,impressions,clicks,leads,raw_actions,imported_at)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb,now()) ON CONFLICT(account_id,ad_id,insight_date)
+    DO UPDATE SET spend=EXCLUDED.spend,impressions=EXCLUDED.impressions,clicks=EXCLUDED.clicks,
+    leads=EXCLUDED.leads,raw_actions=EXCLUDED.raw_actions,imported_at=now()`,
+    [accountId, row.ad_id, row.date_start, Number(row.spend || 0), Number(row.impressions || 0),
+      Number(row.clicks || 0), leadCount(row.actions), JSON.stringify(row.actions || [])]);
+}
+
+async function storeAges(client, accountId, rows) {
+  for (const row of rows) await client.query(`INSERT INTO meta_ad_age_daily
+    (account_id,ad_id,insight_date,age_bucket,spend,impressions,clicks,leads,raw_actions,imported_at)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,now()) ON CONFLICT(account_id,ad_id,insight_date,age_bucket)
+    DO UPDATE SET spend=EXCLUDED.spend,impressions=EXCLUDED.impressions,clicks=EXCLUDED.clicks,
+    leads=EXCLUDED.leads,raw_actions=EXCLUDED.raw_actions,imported_at=now()`,
+    [accountId, row.ad_id, row.date_start, row.age, Number(row.spend || 0), Number(row.impressions || 0),
+      Number(row.clicks || 0), leadCount(row.actions), JSON.stringify(row.actions || [])]);
+}
+
+export async function runManualSync({ from, to }) {
+  const { metaAdAccountIds } = getConfig();
+  if (!metaAdAccountIds.length) throw new Error('META_AD_ACCOUNT_IDS lipsește din fișierul .env.');
+  const started = await pool.query(`INSERT INTO sync_runs(trigger_type,requested_from,requested_to,status,accounts_total)
+    VALUES('manual',$1,$2,'running',$3) RETURNING id`, [from, to, metaAdAccountIds.length]);
+  const syncId = started.rows[0].id;
+  let imported = 0;
+  try {
+    for (const accountId of metaAdAccountIds) {
+      const account = await graph(accountId, { fields: 'id,name,currency,timezone_name,account_status,business{id,name}' });
+      const baseRows = await insights(accountId, from, to);
+      const ageRows = await insights(accountId, from, to, 'age');
+      await withTransaction(async (client) => {
+        await storeAccount(client, account, baseRows);
+        await storeBase(client, account.id, baseRows);
+        await storeAges(client, account.id, ageRows);
+      });
+      imported += baseRows.length + ageRows.length;
+      await pool.query('UPDATE sync_runs SET accounts_completed=accounts_completed+1,rows_imported=$2 WHERE id=$1', [syncId, imported]);
+    }
+    await pool.query("UPDATE sync_runs SET status='succeeded',finished_at=now() WHERE id=$1", [syncId]);
+    return { syncId, rowsImported: imported };
+  } catch (error) {
+    await pool.query("UPDATE sync_runs SET status='failed',error_message=$2,finished_at=now() WHERE id=$1", [syncId, error.message]);
+    throw error;
+  }
+}

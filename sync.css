@@ -1,0 +1,17 @@
+.sync-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+.sync-button {
+  background: #16754d;
+  border-color: #16754d;
+  color: white;
+  font-weight: 600;
+}
+.sync-button:hover { background: #115e3d; color: white; }
+.sync-button:disabled { cursor: wait; opacity: .65; }
+.sync-control small { color: #7d8b82; font-size: 10px; max-width: 190px; }
+.sync-control .sync-success { color: #16754d; }
+.sync-control .sync-error { color: #a43f35; }

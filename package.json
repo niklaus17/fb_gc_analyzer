@@ -1,0 +1,17 @@
+{
+  "name": "fb-gc-analyzer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "db:migrate": "node server/migrate.js",
+    "dev": "node --watch server/index.js",
+    "start": "node server/index.js",
+    "test": "node tests/accounts.test.cjs && node --test tests/server.test.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "pg": "^8.16.3"
+  }
+}

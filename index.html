@@ -7,6 +7,7 @@
     <meta name="description" content="Prototip local pentru analiza campaniilor, adseturilor și creativelor.">
     <title>Campaigns — Analiză campanii</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="sync.css">
     <script defer src="app.js"></script>
 </head>
 
@@ -21,7 +22,7 @@
                 <h1>Analiză campanii</h1>
                 <p>De la primul lead la comanda plătită. Toate cifrele, într-un singur loc.</p>
             </div>
-            <div class="report-controls"><button id="accounts-button" class="account-picker" aria-haspopup="dialog" aria-controls="accounts-dialog"><span class="account-icon">▣</span><span><small>CONTURI PUBLICITARE</small><strong id="accounts-summary">2 conturi selectate</strong><span id="accounts-context">Webcase · USD</span></span><span>⌄</span></button>
+            <div class="report-controls"><div class="sync-control"><button id="sync-meta" class="sync-button"><span>↻</span> Actualizează din Facebook</button><small id="sync-status" role="status">Backend local în așteptare</small></div><button id="accounts-button" class="account-picker" aria-haspopup="dialog" aria-controls="accounts-dialog"><span class="account-icon">▣</span><span><small>CONTURI PUBLICITARE</small><strong id="accounts-summary">2 conturi selectate</strong><span id="accounts-context">Webcase · USD</span></span><span>⌄</span></button>
             <form class="period" id="period-form"><div class="date-fields"><label>De la<input type="date" id="date-from" value="2026-06-01" required></label><span>—</span><label>Până la<input type="date" id="date-to" value="2026-06-30" required></label><button type="submit">Aplică</button></div><small>Date demo disponibile: 1–30 iunie 2026</small><span id="period-error" role="alert"></span></form></div>
         </div>
         <section class="metrics" id="metrics" aria-label="Rezumat selecție"></section>
