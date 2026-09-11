@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ro">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Prototip local pentru analiza campaniilor, adseturilor și creativelor.">
+    <title>Campaigns — Analiză campanii</title>
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="app.js"></script>
+</head>
+
+<body>
+    <header class="topbar"><a class="brand" href="./"><span class="brand-icon">▤</span> campaign<span
+                class="brand-light">sheet</span></a><span class="workspace">Spațiul meu <span>/</span> Analiză
+            campanii</span><span class="demo"><i></i> Date demonstrative</span><span class="avatar">N</span></header>
+    <main>
+        <div class="page-heading">
+            <div>
+                <div class="eyebrow">FACEBOOK ADS × GETCOURSE</div>
+                <h1>Analiză campanii</h1>
+                <p>De la primul lead la comanda plătită. Toate cifrele, într-un singur loc.</p>
+            </div>
+            <form class="period" id="period-form"><div class="date-fields"><label>De la<input type="date" id="date-from" value="2026-06-01" required></label><span>—</span><label>Până la<input type="date" id="date-to" value="2026-06-30" required></label><button type="submit">Aplică</button></div><small>Date demo disponibile: 1–30 iunie 2026</small><span id="period-error" role="alert"></span></form>
+        </div>
+        <section class="metrics" id="metrics" aria-label="Rezumat selecție"></section>
+        <section class="sheet" aria-label="Foaie de analiză">
+            <div class="sheet-top">
+                <div class="sheet-title"><span class="sheet-icon">▤</span><strong>Performanță campanii</strong><span
+                        class="count" id="campaign-count"></span></div><label class="currency">Monedă: <select id="currency" aria-label="Moneda contului demo"><option>USD</option><option>EUR</option><option>RON</option><option>MDL</option></select><small>Moneda datelor · fără conversie</small></label>
+            </div>
+            <div class="toolbar">
+                <div class="filters"><button data-panel="entities" id="entities-button">☷ <span>Campanii și
+                            reclame</span><span class="button-count" id="selection-count"></span>⌄</button><label class="active-filter">Tag <select id="tag-filter"><option value="all">Toate elementele</option><option value="exclude">Ascunde inactive</option><option value="only">Doar inactive</option></select></label></div>
+                <div class="view-controls"><button id="collapse-all" class="quiet">⊟ Restrânge tot</button><button
+                        data-panel="columns" id="columns-button">▥ Coloane <span class="button-count"
+                            id="column-count"></span>⌄</button></div>
+            </div>
+            <div class="selection-note"><span class="info-icon">i</span><span>Totalurile includ doar elementele
+                    selectate. Restrângerea rândurilor păstrează totalurile.</span><button id="reset">Resetează
+                    filtrele</button></div>
+            <div class="table-scroll" tabindex="0" aria-label="Tabel cu derulare orizontală">
+                <table id="data-table">
+                    <caption class="sr-only">Performanță pe campanii, adseturi și creative. Indicatorii sunt calculați
+                        pentru selecția curentă.</caption>
+                    <thead id="table-head"></thead>
+                    <tbody id="table-body"></tbody>
+                    <tfoot id="table-foot"></tfoot>
+                </table>
+            </div>
+            <div class="sheet-footer">
+                <div><span class="live-dot"></span><span id="row-count" aria-live="polite"></span></div><span>←
+                    Derulează orizontal pentru toate coloanele →</span>
+            </div>
+        </section>
+        <div class="bottom-note"><span>ⓘ Date fictive pentru explorarea designului. Nicio sursă de date
+                conectată.</span><button id="formulas-button">Cum se calculează indicatorii ↗</button></div>
+    </main>
+    <dialog id="entities-dialog">
+        <div class="dialog-header">
+            <div>
+                <h2>Campanii și reclame</h2>
+                <p>Bifează elementele dorite sau aplică manual tagul „Inactiv”.</p>
+            </div><button class="close" aria-label="Închide">×</button>
+        </div>
+        <div class="bulk"><button id="select-all">Selectează tot</button><button id="select-none">Deselectează
+                tot</button></div>
+        <p class="tag-help">Tagul unui părinte se aplică la filtrare și elementelor din interior. Tagurile se păstrează în acest browser.</p><p id="storage-note" role="status" class="tag-help"></p>
+        <div id="entity-options" class="dialog-body"></div>
+        <div class="dialog-footer"><span>Selecția se aplică imediat.</span><button class="primary close">Gata</button>
+        </div>
+    </dialog>
+    <dialog id="columns-dialog">
+        <div class="dialog-header">
+            <div>
+                <h2>Coloane vizibile</h2>
+                <p>Alege datele relevante pentru analiza ta.</p>
+            </div><button class="close" aria-label="Închide">×</button>
+        </div>
+        <div id="column-options" class="dialog-body"></div>
+        <div class="dialog-footer"><span>Indicatorii se calculează automat.</span><button
+                class="primary close">Gata</button></div>
+    </dialog>
+    <dialog id="formulas-dialog">
+        <div class="dialog-header">
+            <div>
+                <h2>Cum calculăm indicatorii</h2>
+                <p>Calcule pe datele elementelor selectate.</p>
+            </div><button class="close" aria-label="Închide">×</button>
+        </div>
+        <div class="dialog-body formulas">
+            <dl>
+                <dt>Cost per L1 trimis</dt>
+                <dd>Spend ÷ L1 trimis</dd>
+                <dt>Cost per Absolvit</dt>
+                <dd>Spend ÷ Absolvit</dd>
+                <dt>Rata de absolvire</dt>
+                <dd>Absolvit ÷ L1 trimis × 100</dd>
+                <dt>Cost per Com plătită</dt>
+                <dd>Spend ÷ Com plătită</dd>
+                <dt>ROAS</dt>
+                <dd>Venit din comenzi plătite ÷ Spend</dd>
+                <dt>Lead → Plătit %</dt>
+                <dd>Com plătită ÷ Leads × 100</dd>
+            </dl>
+            <p>Vârsta reprezintă numărul de leaduri din fiecare grupă. Venitul este fictiv și disponibil ca o coloană
+                separată. Dacă numitorul este zero, afișăm „—”.</p>
+            <p>Totalurile folosesc sumele datelor de bază, apoi recalculează costurile și ratele; nu fac media ratelor
+                din rânduri.</p>
+        </div>
+    </dialog>
+</body>
+
+</html>
