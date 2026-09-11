@@ -26,6 +26,8 @@ export function getConfig() {
       .split(',').map((value) => value.trim()).filter(Boolean)
       .map(normalizeAccountId),
     metaAdAccountNames: accountNamesById(),
+    metaBusinessPortfolioId: process.env.META_BUSINESS_PORTFOLIO_ID || 'meta:default',
+    metaBusinessPortfolioName: process.env.META_BUSINESS_PORTFOLIO_NAME || 'Meta Business Portfolio',
     port: Number(process.env.PORT || 3000),
   };
 }

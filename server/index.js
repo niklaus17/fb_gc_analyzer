@@ -23,7 +23,7 @@ app.get('/api/meta/sync/latest', async (_request, response) => {
 });
 
 app.get('/api/report', async (request, response) => {
-  const { metaAdAccountIds, metaAdAccountNames } = getConfig();
+  const { metaAdAccountIds, metaAdAccountNames, metaBusinessPortfolioId, metaBusinessPortfolioName } = getConfig();
   const from = request.query.from || '1900-01-01';
   const to = request.query.to || '2999-12-31';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to)
@@ -35,14 +35,14 @@ app.get('/api/report', async (request, response) => {
     ORDER BY a.name`, [metaAdAccountIds]);
   const accounts = accountResult.rows.map((account) => ({
     id: account.id,
-    portfolioId: account.portfolio_id || `portfolio:${account.id}`,
+    portfolioId: account.portfolio_id || metaBusinessPortfolioId,
     name: metaAdAccountNames[account.id] || account.name,
     originalName: account.name,
     currency: account.currency,
   }));
   const portfolios = Object.values(Object.fromEntries(accountResult.rows.map((account) => [
-    account.portfolio_id || `portfolio:${account.id}`,
-    { id: account.portfolio_id || `portfolio:${account.id}`, name: account.portfolio_name || 'Meta Ads' },
+    account.portfolio_id || metaBusinessPortfolioId,
+    { id: account.portfolio_id || metaBusinessPortfolioId, name: account.portfolio_name || metaBusinessPortfolioName },
   ])));
 
   const rows = await pool.query(`WITH base AS (

@@ -47,7 +47,8 @@ async function insights(accountId, from, to, breakdowns) {
 }
 
 async function storeAccount(client, account, rows) {
-  const portfolio = account.business || { id: `account:${account.id}`, name: 'Fără Business Portfolio' };
+  const { metaBusinessPortfolioId, metaBusinessPortfolioName } = getConfig();
+  const portfolio = account.business || { id: metaBusinessPortfolioId, name: metaBusinessPortfolioName };
   await client.query(`INSERT INTO business_portfolios(id,name,updated_at) VALUES($1,$2,now())
     ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,updated_at=now()`, [portfolio.id, portfolio.name]);
   await client.query(`INSERT INTO ad_accounts(id,portfolio_id,name,currency,timezone_name,account_status,updated_at)
