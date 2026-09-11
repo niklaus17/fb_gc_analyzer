@@ -66,7 +66,7 @@ const decimal=new Intl.NumberFormat('ro-RO',{minimumFractionDigits:2,maximumFrac
 const dateFmt=new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric'});
 const monthFmt=new Intl.DateTimeFormat('en-US',{month:'short',year:'numeric'});
 function dateObj(value){const [y,m,d]=value.split('-').map(Number);return new Date(y,m-1,d);}
-function isoDate(date){return date.toISOString().slice(0,10);}
+function isoDate(date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;}
 function shiftDays(value,days){const d=dateObj(value);d.setDate(d.getDate()+days);return isoDate(d);}
 function monthStart(value){const d=dateObj(value);return isoDate(new Date(d.getFullYear(),d.getMonth(),1));}
 function monthEnd(value){const d=dateObj(value);return isoDate(new Date(d.getFullYear(),d.getMonth()+1,0));}
