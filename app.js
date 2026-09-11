@@ -1,6 +1,6 @@
 'use strict';
 const columns = [
-  ['spend','Spend','money','Rezultate'],['leads','Leads','number','Rezultate'],['l1in','L1 intrat','number','Rezultate'],['l1sent','L1 trimis','number','Rezultate'],['graduates','Absolvit','number','Rezultate'],['orders','Com creată','number','Rezultate'],['paid','Com plătită','number','Rezultate'],['revenue','Venit','money','Rezultate'],
+  ['spend','Spend','money','Rezultate'],['leads','Leads','number','Rezultate'],['cpl','Cost per Lead','money','Indicatori calculați'],['l1in','L1 intrat','number','Rezultate'],['l1sent','L1 trimis','number','Rezultate'],['graduates','Absolvit','number','Rezultate'],['orders','Com creată','number','Rezultate'],['paid','Com plătită','number','Rezultate'],['revenue','Venit','money','Rezultate'],
   ['sub_16','sub_16','number','Vârstă · număr de leaduri'],['16_17','16_17','number','Vârstă · număr de leaduri'],['18_24','18_24','number','Vârstă · număr de leaduri'],['25_34','25_34','number','Vârstă · număr de leaduri'],['35_44','35_44','number','Vârstă · număr de leaduri'],['45_plus','45_plus','number','Vârstă · număr de leaduri'],
   ['cpl1','Cost per L1 trimis','money','Indicatori calculați'],['cpgrad','Cost per Absolvit','money','Indicatori calculați'],['gradRate','Rata de absolvire','percent','Indicatori calculați'],['cppaid','Cost per Com plătită','money','Indicatori calculați'],['roas','ROAS','ratio','Indicatori calculați'],['paidRate','Lead → Plătit %','percent','Indicatori calculați']
 ];
@@ -35,7 +35,7 @@ const leaves=node=>node.children?node.children.flatMap(leaves):[node];
 const selected=new Set(campaigns.flatMap(leaves).map(x=>x.id));
 const expanded=new Set(allNodes.filter(n=>['c1','c2','c3','a1'].includes(n.sourceId)).map(n=>n.id));
 const entityExpanded=new Set();
-const visible=new Set(['spend','leads','l1in','l1sent','graduates','orders','paid','cpl1','cpgrad','gradRate','cppaid','roas','paidRate']);
+const visible=new Set(['spend','leads','cpl','l1in','l1sent','graduates','orders','paid','cpl1','cpgrad','gradRate','cppaid','roas','paidRate']);
 let tagFilter='all';
 let currency='USD';
 let dateFrom='2026-06-01',dateTo='2026-06-30';
@@ -77,7 +77,7 @@ function datePresets(){const today=todayIso(),yesterday=shiftDays(today,-1),week
  ['Custom',dateFrom,dateTo],['Today',today,today],['Yesterday',yesterday,yesterday],['This week',weekStart,today],['Last 7 days',shiftDays(today,-6),today],['Last week',lastWeekStart,lastWeekEnd],['Last 14 days',shiftDays(today,-13),today],['This month',thisMonthStart,today],['Last 30 days',shiftDays(today,-29),today],['Last month',lastMonthDate,monthEnd(lastMonthDate)],['All time','2026-06-01',today]
 ];}
 function divide(a,b,m=1){return b ? a/b*m : null;}
-function aggregate(rows){const s=Object.fromEntries(baseKeys.map(k=>[k,rows.reduce((sum,r)=>sum+Number(r[k]||0),0)]));return {...s,cpl1:divide(s.spend,s.l1sent),cpgrad:divide(s.spend,s.graduates),gradRate:divide(s.graduates,s.l1sent,100),cppaid:divide(s.spend,s.paid),roas:divide(s.revenue,s.spend),paidRate:divide(s.paid,s.leads,100)};}
+function aggregate(rows){const s=Object.fromEntries(baseKeys.map(k=>[k,rows.reduce((sum,r)=>sum+Number(r[k]||0),0)]));return {...s,cpl:divide(s.spend,s.leads),cpl1:divide(s.spend,s.l1sent),cpgrad:divide(s.spend,s.graduates),gradRate:divide(s.graduates,s.l1sent,100),cppaid:divide(s.spend,s.paid),roas:divide(s.revenue,s.spend),paidRate:divide(s.paid,s.leads,100)};}
 function format(v,type){if(v===null)return '—';return type==='money'?decimal.format(v)+' '+currency:type==='percent'?decimal.format(v)+'%':type==='ratio'?decimal.format(v)+'×':number.format(v);}
 function filteredLeaves(node,parentInactive=false){if(!selectedAccounts.has(node.accountId))return [];const inactive=parentInactive||inactiveTags.has(node.id);if(tagFilter==='exclude'&&inactive)return [];return node.children?node.children.flatMap(n=>filteredLeaves(n,inactive)):selected.has(node.id)&&(tagFilter!=='only'||inactive)?[periodData(node)].filter(Boolean):[];}
 function cellValues(s){return columns.filter(c=>visible.has(c[0])).map(([key,label,type,group])=>`<td class="${group==='Indicatori calculați'?'derived ':''}${key==='roas'&&s[key]>=1?'roas-good':''}">${format(s[key],type)}</td>`).join('');}
