@@ -1,11 +1,12 @@
 import { getConfig } from './config.js';
 import { pool, withTransaction } from './db.js';
 
-const LEAD_ACTIONS = new Set(['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead']);
+const WEBSITE_LEAD_ACTION = 'lead';
+const ATTRIBUTION_WINDOW = '7d_click';
 
 export function leadCount(actions = []) {
-  return actions.filter(({ action_type }) => LEAD_ACTIONS.has(action_type))
-    .reduce((sum, action) => sum + Number(action.value || 0), 0);
+  const action = actions.find(({ action_type }) => action_type === WEBSITE_LEAD_ACTION);
+  return Number(action?.[ATTRIBUTION_WINDOW] || 0);
 }
 
 async function graph(path, params = {}) {

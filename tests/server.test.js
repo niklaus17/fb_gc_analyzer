@@ -3,12 +3,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { leadCount } from '../server/meta.js';
 
-test('leadCount însumează doar acțiunile Meta de tip lead', () => {
+test('leadCount ia doar Website leads din 7-day click attribution', () => {
   assert.equal(leadCount([
-    { action_type: 'lead', value: '3' },
-    { action_type: 'onsite_conversion.lead_grouped', value: '2' },
-    { action_type: 'link_click', value: '99' },
-  ]), 5);
+    { action_type: 'lead', value: '8', '7d_click': '7' },
+    { action_type: 'offsite_conversion.fb_pixel_lead', value: '8', '7d_click': '7' },
+    { action_type: 'onsite_web_lead', value: '8', '7d_click': '7' },
+    { action_type: 'link_click', value: '99', '7d_click': '99' },
+  ]), 7);
+  assert.equal(leadCount([{ action_type: 'lead', value: '8' }]), 0);
   assert.equal(leadCount(), 0);
 });
 
