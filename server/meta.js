@@ -17,7 +17,11 @@ async function graph(path, params = {}) {
   }
   const response = await fetch(url);
   const body = await response.json();
-  if (!response.ok || body.error) throw new Error(body.error?.message || `Meta API: HTTP ${response.status}.`);
+  if (!response.ok || body.error) {
+    const meta = body.error || {};
+    const details = [meta.message, meta.error_user_msg, meta.code && `cod ${meta.code}`, meta.error_subcode && `subcod ${meta.error_subcode}`].filter(Boolean);
+    throw new Error(details.join(' · ') || `Meta API: HTTP ${response.status}.`);
+  }
   return body;
 }
 
@@ -94,9 +98,15 @@ export async function runManualSync({ from, to }) {
   let imported = 0;
   try {
     for (const accountId of metaAdAccountIds) {
-      const account = await graph(accountId, { fields: 'id,name,currency,timezone_name,account_status,business{id,name}' });
-      const baseRows = await insights(accountId, from, to);
-      const ageRows = await insights(accountId, from, to, 'age');
+      // Portfolio discovery requires business_management. The performance import
+      // intentionally works with ads_read alone.
+      let account, baseRows, ageRows;
+      try { account = await graph(accountId, { fields: 'id,name,currency,timezone_name,account_status' }); }
+      catch (error) { throw new Error(`${accountId}: citirea contului a eșuat · ${error.message}`); }
+      try { baseRows = await insights(accountId, from, to); }
+      catch (error) { throw new Error(`${accountId}: raportul zilnic a eșuat · ${error.message}`); }
+      try { ageRows = await insights(accountId, from, to, 'age'); }
+      catch (error) { throw new Error(`${accountId}: raportul pe vârste a eșuat · ${error.message}`); }
       await withTransaction(async (client) => {
         await storeAccount(client, account, baseRows);
         await storeBase(client, account.id, baseRows);

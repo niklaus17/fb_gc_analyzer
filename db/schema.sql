@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS meta_ad_age_daily (
   account_id text NOT NULL REFERENCES ad_accounts(id) ON DELETE CASCADE,
   ad_id text NOT NULL REFERENCES ads(id) ON DELETE CASCADE,
   insight_date date NOT NULL,
-  age_bucket text NOT NULL CHECK (age_bucket IN ('13-17','18-24','25-34','35-44','45-54','55-64','65+')),
+  age_bucket text NOT NULL,
   spend numeric(18,6) NOT NULL DEFAULT 0,
   impressions bigint NOT NULL DEFAULT 0,
   clicks bigint NOT NULL DEFAULT 0,
@@ -95,6 +95,9 @@ CREATE TABLE IF NOT EXISTS sync_runs (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS one_running_meta_sync ON sync_runs (source) WHERE status='running';
+
+-- Existing local databases created before the `unknown` Meta bucket was observed.
+ALTER TABLE meta_ad_age_daily DROP CONSTRAINT IF EXISTS meta_ad_age_daily_age_bucket_check;
 CREATE INDEX IF NOT EXISTS insights_date_idx ON meta_ad_insights_daily (insight_date);
 CREATE INDEX IF NOT EXISTS age_date_idx ON meta_ad_age_daily (insight_date);
 CREATE INDEX IF NOT EXISTS campaigns_account_idx ON campaigns (account_id);
