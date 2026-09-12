@@ -1,137 +1,1022 @@
-'use strict';
+"use strict";
 const columns = [
-  ['spend','Spend','money','Rezultate'],['leadsGc','Leads GC','number','Rezultate'],['cpl','Cost per Lead','money','Indicatori calculați'],['leadsFb','Leads FB','number','Facebook Ads'],['l1in','L1 intrat','number','Rezultate'],['l1sent','L1 trimis','number','Rezultate'],['graduates','Absolvit','number','Rezultate'],['orders','Com creată','number','Rezultate'],['paid','Com plătită','number','Rezultate'],['revenue','Venit','money','Rezultate'],
-  ['sub_16','sub_16','number','Vârstă · număr de leaduri'],['16_17','16_17','number','Vârstă · număr de leaduri'],['18_24','18_24','number','Vârstă · număr de leaduri'],['25_34','25_34','number','Vârstă · număr de leaduri'],['35_44','35_44','number','Vârstă · număr de leaduri'],['45_plus','45_plus','number','Vârstă · număr de leaduri'],
-  ['cpl1','Cost per L1 trimis','money','Indicatori calculați'],['cpgrad','Cost per Absolvit','money','Indicatori calculați'],['gradRate','Rata de absolvire','percent','Indicatori calculați'],['cppaid','Cost per Com plătită','money','Indicatori calculați'],['roas','ROAS','ratio','Indicatori calculați'],['paidRate','Lead → Plătit %','percent','Indicatori calculați']
+  ["spend", "Spend", "money", "Rezultate"],
+  ["leadsGc", "Leads GC", "number", "Rezultate"],
+  ["cpl", "Cost per Lead", "money", "Indicatori calculați"],
+  ["leadsFb", "Leads FB", "number", "Facebook Ads"],
+  ["l1in", "L1 intrat", "number", "Rezultate"],
+  ["l1sent", "L1 trimis", "number", "Rezultate"],
+  ["graduates", "Absolvit", "number", "Rezultate"],
+  ["orders", "Com creată", "number", "Rezultate"],
+  ["paid", "Com plătită", "number", "Rezultate"],
+  ["revenue", "Venit", "money", "Rezultate"],
+  ["sub_16", "sub_16", "number", "Vârstă · număr de leaduri"],
+  ["16_17", "16_17", "number", "Vârstă · număr de leaduri"],
+  ["18_24", "18_24", "number", "Vârstă · număr de leaduri"],
+  ["25_34", "25_34", "number", "Vârstă · număr de leaduri"],
+  ["35_44", "35_44", "number", "Vârstă · număr de leaduri"],
+  ["45_plus", "45_plus", "number", "Vârstă · număr de leaduri"],
+  ["cpl1", "Cost per L1 trimis", "money", "Indicatori calculați"],
+  ["cpgrad", "Cost per Absolvit", "money", "Indicatori calculați"],
+  ["gradRate", "Rata de absolvire", "percent", "Indicatori calculați"],
+  ["cppaid", "Cost per Com plătită", "money", "Indicatori calculați"],
+  ["roas", "ROAS", "ratio", "Indicatori calculați"],
+  ["paidRate", "Lead → Plătit %", "percent", "Indicatori calculați"],
 ];
-const ageKeys=['sub_16','16_17','18_24','25_34','35_44','45_plus'];
-const baseKeys=['spend','leadsGc','leadsFb','l1in','l1sent','graduates','orders','paid','revenue',...ageKeys];
-let portfolios=[{id:'demo-webcase',name:'Webcase · portofoliu demo'},{id:'demo-studio',name:'Design Studio · portofoliu demo'}];
-let accounts=[
- {id:'demo-account-01',portfolioId:'demo-webcase',name:'Webcase Community · Moldova',currency:'USD'},
- {id:'demo-account-02',portfolioId:'demo-webcase',name:'Webcase Community · România',currency:'USD'},
- {id:'demo-account-03',portfolioId:'demo-studio',name:'Design Studio · Europa',currency:'EUR'},
- {id:'demo-account-04',portfolioId:'demo-studio',name:'Design Studio · Internațional',currency:'USD'}
+const ageKeys = ["sub_16", "16_17", "18_24", "25_34", "35_44", "45_plus"];
+const baseKeys = [
+  "spend",
+  "leadsGc",
+  "leadsFb",
+  "l1in",
+  "l1sent",
+  "graduates",
+  "orders",
+  "paid",
+  "revenue",
+  ...ageKeys,
 ];
-const selectedAccounts=new Set(['demo-account-01','demo-account-02']);
-const accountById=id=>accounts.find(a=>a.id===id);
-let campaigns=[
- {id:'c1',name:'AN_Leads_RO/MD_Orase_25_Iun',children:[
-  {id:'a1',name:'BROAD_MD_23_40_25_IUNIE',children:['Ad1_import','Ad4_video_sergiu+prezentare','AI_in_actiune','curs_gratuit_7_zile','curs_gratuit_blue'].map((name,i)=>creative('r'+i,name,i))},
-  {id:'a2',name:'BROAD_RO_23_40_25_IUNIE',children:['Ad1_import','Ad3_import_v2','curs_gratuit_circle','Incepe_acum_briliant'].map((name,i)=>creative('s'+i,name,i+5))},
-  {id:'a3',name:'INTEREST_DESIGN_MD_25_IUNIE',children:['design_cu_mentor','Invata_Web_design'].map((name,i)=>creative('t'+i,name,i+9))}]},
- {id:'c2',name:'AN_Leads_RO_Design_12_Iun',children:[
-  {id:'a4',name:'BROAD_RO_18_34_DESIGN',children:['Video_rezultate','Un_skill_nou','inainte_sa_platesti'].map((name,i)=>creative('u'+i,name,i+11))},
-  {id:'a5',name:'RETARGETING_RO_30_ZILE',children:['Poveste_absolvent','Ultimele_locuri'].map((name,i)=>creative('v'+i,name,i+14))}]},
- {id:'c3',name:'AN_Leads_MD_Retargeting_05_Iun',children:[{id:'a6',name:'WARM_MD_ENGAGEMENT',children:['Ad_testimonial','curs_gratuit_pink'].map((name,i)=>creative('w'+i,name,i+16))}]}];
-function creative(id,name,i){const leads=48+(i*23)%137;const l1in=Math.floor(leads*.78);const l1sent=Math.floor(l1in*.83);const graduates=Math.floor(l1sent*(.49+(i%4)*.06));const orders=Math.floor(graduates*.53);const paid=Math.floor(orders*.68);const ages=[.03,.09,.32,.30,.18].map(v=>Math.floor(leads*v));ages.push(leads-ages.reduce((a,b)=>a+b,0));return {id,name,spend:Math.round((leads*(2.4+(i%5)*.37))*100)/100,leadsGc:leads,leadsFb:Math.round(leads*.92),l1in,l1sent,graduates,orders,paid,revenue:paid*(89+(i%3)*20),...Object.fromEntries(ageKeys.map((k,j)=>[k,ages[j]]))};}
-campaigns.push({id:'c4',name:'DS_Leads_Europa_01_Iun',children:[{id:'a7',name:'BROAD_EU_DESIGN',children:[creative('eu1','Video_design_europa',18),creative('eu2','Curs_design_europa',19)]}]});
-campaigns.push({id:'c5',name:'DS_Leads_International_01_Iun',children:[{id:'a8',name:'BROAD_INT_DESIGN',children:[creative('int1','Video_design_global',20)]}]});
-// Every level carries account ownership. Use account + entity IDs as stable keys.
-campaigns.forEach((campaign,i)=>{const accountId=['demo-account-01','demo-account-02','demo-account-02','demo-account-03','demo-account-04'][i];function assign(node){node.accountId=accountId;node.sourceId=node.id;node.id=accountId+':'+node.id;if(node.children)node.children.forEach(assign);}assign(campaign);});
-const scopedCampaigns=()=>campaigns.filter(c=>selectedAccounts.has(c.accountId));
-let allNodes=campaigns.flatMap(c=>[c,...c.children.flatMap(a=>[a,...a.children])]);
-const leaves=node=>node.children?node.children.flatMap(leaves):[node];
-const selected=new Set(campaigns.flatMap(leaves).map(x=>x.id));
-const expanded=new Set(allNodes.filter(n=>['c1','c2','c3','a1'].includes(n.sourceId)).map(n=>n.id));
-const entityExpanded=new Set();
-const visible=new Set(['spend','leadsGc','cpl','l1in','l1sent','graduates','orders','paid','cpl1','cpgrad','gradRate','cppaid','roas','paidRate']);
-let tagFilter='all';
-let currency='USD';
-let dateFrom='2026-06-01',dateTo='2026-06-30';
-let pendingFrom=dateFrom,pendingTo=dateTo,calendarMonth='2026-06-01',datePreset='Custom',pickingRange=false;
-let entitySearch='',entityAccountFilter='all';
-const inactiveTags=new Set();
-try { const saved=JSON.parse(localStorage.getItem('campaignsheet.preferences')||'{}');
-if(Array.isArray(saved.selectedAccounts)){const valid=saved.selectedAccounts.filter(id=>accountById(id));if(new Set(valid.map(id=>accountById(id).currency)).size<=1){selectedAccounts.clear();valid.forEach(id=>selectedAccounts.add(id));}}
-if(Array.isArray(saved.inactiveTags))saved.inactiveTags.map(id=>allNodes.find(n=>n.id===id||n.sourceId===id)?.id).filter(Boolean).forEach(id=>inactiveTags.add(id));
-} catch {}
-function savePreferences(){try{localStorage.setItem('campaignsheet.preferences',JSON.stringify({selectedAccounts:[...selectedAccounts],inactiveTags:[...inactiveTags]}));$('storage-note').textContent='';}catch{$('storage-note').textContent='Stocarea locală nu este disponibilă. Tagurile se păstrează doar până la reîncărcare.';}}
-// Deterministic daily observations; nested funnel events share their lead date.
-for(const [index,ad] of campaigns.flatMap(leaves).entries()){
- ad.daily=Array.from({length:30},(_,d)=>({date:`2026-06-${String(d+1).padStart(2,'0')}`,...Object.fromEntries(baseKeys.map(k=>[k,0]))}));
- for(let i=0;i<ad.leadsGc;i++){
-  const day=ad.daily[(i*7+index*3)%30];day.leads++;
-  for(const key of ['l1in','l1sent','graduates','orders','paid'])if(i<ad[key])day[key]++;
-  let end=0;for(const key of ageKeys){end+=ad[key];if(i<end){day[key]++;break;}}
- }
- const cents=Math.round(ad.spend*100);
- ad.daily.forEach((day,d)=>{day.spend=(Math.floor(cents*(d+1)/30)-Math.floor(cents*d/30))/100;day.revenue=day.paid*(ad.paid?ad.revenue/ad.paid:0);});
+let portfolios = [
+  { id: "demo-webcase", name: "Webcase · portofoliu demo" },
+  { id: "demo-studio", name: "Design Studio · portofoliu demo" },
+];
+let accounts = [
+  {
+    id: "demo-account-01",
+    portfolioId: "demo-webcase",
+    name: "Webcase Community · Moldova",
+    currency: "USD",
+  },
+  {
+    id: "demo-account-02",
+    portfolioId: "demo-webcase",
+    name: "Webcase Community · România",
+    currency: "USD",
+  },
+  {
+    id: "demo-account-03",
+    portfolioId: "demo-studio",
+    name: "Design Studio · Europa",
+    currency: "EUR",
+  },
+  {
+    id: "demo-account-04",
+    portfolioId: "demo-studio",
+    name: "Design Studio · Internațional",
+    currency: "USD",
+  },
+];
+const selectedAccounts = new Set(["demo-account-01", "demo-account-02"]);
+const accountById = (id) => accounts.find((a) => a.id === id);
+let campaigns = [
+  {
+    id: "c1",
+    name: "AN_Leads_RO/MD_Orase_25_Iun",
+    children: [
+      {
+        id: "a1",
+        name: "BROAD_MD_23_40_25_IUNIE",
+        children: [
+          "Ad1_import",
+          "Ad4_video_sergiu+prezentare",
+          "AI_in_actiune",
+          "curs_gratuit_7_zile",
+          "curs_gratuit_blue",
+        ].map((name, i) => creative("r" + i, name, i)),
+      },
+      {
+        id: "a2",
+        name: "BROAD_RO_23_40_25_IUNIE",
+        children: [
+          "Ad1_import",
+          "Ad3_import_v2",
+          "curs_gratuit_circle",
+          "Incepe_acum_briliant",
+        ].map((name, i) => creative("s" + i, name, i + 5)),
+      },
+      {
+        id: "a3",
+        name: "INTEREST_DESIGN_MD_25_IUNIE",
+        children: ["design_cu_mentor", "Invata_Web_design"].map((name, i) =>
+          creative("t" + i, name, i + 9),
+        ),
+      },
+    ],
+  },
+  {
+    id: "c2",
+    name: "AN_Leads_RO_Design_12_Iun",
+    children: [
+      {
+        id: "a4",
+        name: "BROAD_RO_18_34_DESIGN",
+        children: [
+          "Video_rezultate",
+          "Un_skill_nou",
+          "inainte_sa_platesti",
+        ].map((name, i) => creative("u" + i, name, i + 11)),
+      },
+      {
+        id: "a5",
+        name: "RETARGETING_RO_30_ZILE",
+        children: ["Poveste_absolvent", "Ultimele_locuri"].map((name, i) =>
+          creative("v" + i, name, i + 14),
+        ),
+      },
+    ],
+  },
+  {
+    id: "c3",
+    name: "AN_Leads_MD_Retargeting_05_Iun",
+    children: [
+      {
+        id: "a6",
+        name: "WARM_MD_ENGAGEMENT",
+        children: ["Ad_testimonial", "curs_gratuit_pink"].map((name, i) =>
+          creative("w" + i, name, i + 16),
+        ),
+      },
+    ],
+  },
+];
+function creative(id, name, i) {
+  const leads = 48 + ((i * 23) % 137);
+  const l1in = Math.floor(leads * 0.78);
+  const l1sent = Math.floor(l1in * 0.83);
+  const graduates = Math.floor(l1sent * (0.49 + (i % 4) * 0.06));
+  const orders = Math.floor(graduates * 0.53);
+  const paid = Math.floor(orders * 0.68);
+  const ages = [0.03, 0.09, 0.32, 0.3, 0.18].map((v) => Math.floor(leads * v));
+  ages.push(leads - ages.reduce((a, b) => a + b, 0));
+  return {
+    id,
+    name,
+    spend: Math.round(leads * (2.4 + (i % 5) * 0.37) * 100) / 100,
+    leadsGc: leads,
+    leadsFb: Math.round(leads * 0.92),
+    l1in,
+    l1sent,
+    graduates,
+    orders,
+    paid,
+    revenue: paid * (89 + (i % 3) * 20),
+    ...Object.fromEntries(ageKeys.map((k, j) => [k, ages[j]])),
+  };
 }
-function periodData(ad){if(!ad.daily)return {id:ad.id,...Object.fromEntries(baseKeys.map(k=>[k,Number(ad[k]||0)]))};const days=ad.daily.filter(d=>d.date>=dateFrom&&d.date<=dateTo);return days.length?{id:ad.id,...aggregate(days)}:null;}
+campaigns.push({
+  id: "c4",
+  name: "DS_Leads_Europa_01_Iun",
+  children: [
+    {
+      id: "a7",
+      name: "BROAD_EU_DESIGN",
+      children: [
+        creative("eu1", "Video_design_europa", 18),
+        creative("eu2", "Curs_design_europa", 19),
+      ],
+    },
+  ],
+});
+campaigns.push({
+  id: "c5",
+  name: "DS_Leads_International_01_Iun",
+  children: [
+    {
+      id: "a8",
+      name: "BROAD_INT_DESIGN",
+      children: [creative("int1", "Video_design_global", 20)],
+    },
+  ],
+});
+// Every level carries account ownership. Use account + entity IDs as stable keys.
+campaigns.forEach((campaign, i) => {
+  const accountId = [
+    "demo-account-01",
+    "demo-account-02",
+    "demo-account-02",
+    "demo-account-03",
+    "demo-account-04",
+  ][i];
+  function assign(node) {
+    node.accountId = accountId;
+    node.sourceId = node.id;
+    node.id = accountId + ":" + node.id;
+    if (node.children) node.children.forEach(assign);
+  }
+  assign(campaign);
+});
+const scopedCampaigns = () =>
+  campaigns.filter((c) => selectedAccounts.has(c.accountId));
+let allNodes = campaigns.flatMap((c) => [
+  c,
+  ...c.children.flatMap((a) => [a, ...a.children]),
+]);
+const leaves = (node) =>
+  node.children ? node.children.flatMap(leaves) : [node];
+const selected = new Set(campaigns.flatMap(leaves).map((x) => x.id));
+const expanded = new Set(
+  allNodes
+    .filter((n) => ["c1", "c2", "c3", "a1"].includes(n.sourceId))
+    .map((n) => n.id),
+);
+const entityExpanded = new Set();
+const visible = new Set([
+  "spend",
+  "leadsGc",
+  "cpl",
+  "l1in",
+  "l1sent",
+  "graduates",
+  "orders",
+  "paid",
+  "cpl1",
+  "cpgrad",
+  "gradRate",
+  "cppaid",
+  "roas",
+  "paidRate",
+]);
+let tagFilter = "all";
+let currency = "USD";
+let dateFrom = "2026-06-01",
+  dateTo = "2026-06-30";
+let pendingFrom = dateFrom,
+  pendingTo = dateTo,
+  calendarMonth = "2026-06-01",
+  datePreset = "Custom",
+  pickingRange = false;
+let entitySearch = "",
+  entityAccountFilter = "all";
+const inactiveTags = new Set();
+try {
+  const saved = JSON.parse(
+    localStorage.getItem("campaignsheet.preferences") || "{}",
+  );
+  if (Array.isArray(saved.selectedAccounts)) {
+    const valid = saved.selectedAccounts.filter((id) => accountById(id));
+    if (new Set(valid.map((id) => accountById(id).currency)).size <= 1) {
+      selectedAccounts.clear();
+      valid.forEach((id) => selectedAccounts.add(id));
+    }
+  }
+  if (Array.isArray(saved.inactiveTags))
+    saved.inactiveTags
+      .map((id) => allNodes.find((n) => n.id === id || n.sourceId === id)?.id)
+      .filter(Boolean)
+      .forEach((id) => inactiveTags.add(id));
+} catch {}
+function savePreferences() {
+  try {
+    localStorage.setItem(
+      "campaignsheet.preferences",
+      JSON.stringify({
+        selectedAccounts: [...selectedAccounts],
+        inactiveTags: [...inactiveTags],
+      }),
+    );
+    $("storage-note").textContent = "";
+  } catch {
+    $("storage-note").textContent =
+      "Stocarea locală nu este disponibilă. Tagurile se păstrează doar până la reîncărcare.";
+  }
+}
+// Deterministic daily observations; nested funnel events share their lead date.
+for (const [index, ad] of campaigns.flatMap(leaves).entries()) {
+  ad.daily = Array.from({ length: 30 }, (_, d) => ({
+    date: `2026-06-${String(d + 1).padStart(2, "0")}`,
+    ...Object.fromEntries(baseKeys.map((k) => [k, 0])),
+  }));
+  for (let i = 0; i < ad.leadsGc; i++) {
+    const day = ad.daily[(i * 7 + index * 3) % 30];
+    day.leads++;
+    for (const key of ["l1in", "l1sent", "graduates", "orders", "paid"])
+      if (i < ad[key]) day[key]++;
+    let end = 0;
+    for (const key of ageKeys) {
+      end += ad[key];
+      if (i < end) {
+        day[key]++;
+        break;
+      }
+    }
+  }
+  const cents = Math.round(ad.spend * 100);
+  ad.daily.forEach((day, d) => {
+    day.spend =
+      (Math.floor((cents * (d + 1)) / 30) - Math.floor((cents * d) / 30)) / 100;
+    day.revenue = day.paid * (ad.paid ? ad.revenue / ad.paid : 0);
+  });
+}
+function periodData(ad) {
+  if (!ad.daily)
+    return {
+      id: ad.id,
+      ...Object.fromEntries(baseKeys.map((k) => [k, Number(ad[k] || 0)])),
+    };
+  const days = ad.daily.filter((d) => d.date >= dateFrom && d.date <= dateTo);
+  return days.length ? { id: ad.id, ...aggregate(days) } : null;
+}
 
-const $=id=>document.getElementById(id);
-const number=new Intl.NumberFormat('ro-RO',{maximumFractionDigits:0});
-const decimal=new Intl.NumberFormat('ro-RO',{minimumFractionDigits:2,maximumFractionDigits:2});
-const dateFmt=new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric'});
-const monthFmt=new Intl.DateTimeFormat('en-US',{month:'short',year:'numeric'});
-function dateObj(value){const [y,m,d]=value.split('-').map(Number);return new Date(y,m-1,d);}
-function isoDate(date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;}
-function shiftDays(value,days){const d=dateObj(value);d.setDate(d.getDate()+days);return isoDate(d);}
-function monthStart(value){const d=dateObj(value);return isoDate(new Date(d.getFullYear(),d.getMonth(),1));}
-function monthEnd(value){const d=dateObj(value);return isoDate(new Date(d.getFullYear(),d.getMonth()+1,0));}
-function shiftMonths(value,months){const d=dateObj(value);return isoDate(new Date(d.getFullYear(),d.getMonth()+months,1));}
-function rangeLabel(from,to){const a=dateObj(from),b=dateObj(to);if(a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth())return new Intl.DateTimeFormat('en-US',{month:'short'}).format(a)+' '+a.getDate()+' – '+b.getDate()+', '+b.getFullYear();return dateFmt.format(a)+' – '+dateFmt.format(b);}
-function todayIso(){return isoDate(new Date());}
-function datePresets(){const today=todayIso(),yesterday=shiftDays(today,-1),weekStart=shiftDays(today,-dateObj(today).getDay()),lastWeekEnd=shiftDays(weekStart,-1),lastWeekStart=shiftDays(lastWeekEnd,-6),thisMonthStart=monthStart(today),lastMonthDate=shiftMonths(thisMonthStart,-1);return [
- ['Custom',dateFrom,dateTo],['Today',today,today],['Yesterday',yesterday,yesterday],['This week',weekStart,today],['Last 7 days',shiftDays(today,-6),today],['Last week',lastWeekStart,lastWeekEnd],['Last 14 days',shiftDays(today,-13),today],['This month',thisMonthStart,today],['Last 30 days',shiftDays(today,-29),today],['Last month',lastMonthDate,monthEnd(lastMonthDate)],['All time','2026-06-01',today]
-];}
-function divide(a,b,m=1){return b ? a/b*m : null;}
-function aggregate(rows){const s=Object.fromEntries(baseKeys.map(k=>[k,rows.reduce((sum,r)=>sum+Number(r[k]||0),0)]));return {...s,cpl:divide(s.spend,s.leadsGc),cpl1:divide(s.spend,s.l1sent),cpgrad:divide(s.spend,s.graduates),gradRate:divide(s.graduates,s.l1sent,100),cppaid:divide(s.spend,s.paid),roas:divide(s.revenue,s.spend),paidRate:divide(s.paid,s.leadsGc,100)};}
-function format(v,type){if(v===null)return '—';return type==='money'?decimal.format(v)+' '+currency:type==='percent'?decimal.format(v)+'%':type==='ratio'?decimal.format(v)+'×':number.format(v);}
-function filteredLeaves(node,parentInactive=false){if(!selectedAccounts.has(node.accountId))return [];const inactive=parentInactive||inactiveTags.has(node.id);if(tagFilter==='exclude'&&inactive)return [];return node.children?node.children.flatMap(n=>filteredLeaves(n,inactive)):selected.has(node.id)&&(tagFilter!=='only'||inactive)?[periodData(node)].filter(Boolean):[];}
-function cellValues(s){return columns.filter(c=>visible.has(c[0])).map(([key,label,type,group])=>`<td class="${group==='Indicatori calculați'?'derived ':''}${key==='roas'&&s[key]>=1?'roas-good':''}">${format(s[key],type)}</td>`).join('');}
-function accountLabel(accountId){return accountById(accountId)?.name||accountId||'Cont necunoscut';}
-function render(){renderAccountSummary();const rows=campaigns.flatMap(c=>filteredLeaves(c));const total=aggregate(rows);const cards=[['Spend',format(total.spend,'money'),'Buget cheltuit','↗'],['Leads GC',format(total.leadsGc,'number'),'Leaduri GetCourse în selecția curentă','♧'],['Absolvit',format(total.graduates,'number'),format(total.gradRate,'percent')+' din L1 trimis','✓'],['Com plătită',format(total.paid,'number'),format(total.revenue,'money')+' venit','▣'],['ROAS',format(total.roas,'ratio'),'Venit / buget cheltuit','↗']];
-$('metrics').innerHTML=cards.map(([label,value,detail,icon])=>`<article class="metric"><div class="metric-label">${label}<span>${icon}</span></div><div class="metric-value">${value}</div><div class="metric-detail">${detail}</div></article>`).join('');
-$('table-head').innerHTML=`<tr><th scope="col"><div class="hierarchy-head">Campanie / Adset / Creative <small>DENUMIRE</small></div></th>${columns.filter(c=>visible.has(c[0])).map(c=>`<th scope="col" title="${c[3]}">${c[1]}</th>`).join('')}</tr>`;
-let html='',campaignCount=0,adsetCount=0;
-function row(node,level,parentInactive=false){const inactive=parentInactive||inactiveTags.has(node.id);const included=filteredLeaves(node,parentInactive);if(!included.length)return;if(level===0)campaignCount++;if(level===1)adsetCount++;const kind=['campaign','adset','creative'][level];html+=`<tr class="${kind} ${inactive?'inactive-row':''}"><td><div class="row-label">${node.children?`<button class="toggle" data-toggle="${node.id}" aria-expanded="${expanded.has(node.id)}" aria-label="${expanded.has(node.id)?'Restrânge':'Extinde'} ${node.name}">${expanded.has(node.id)?'−':'+'}</button>`:'<span class="type-icon">▧</span>'}<span class="name" title="${node.name}">${node.name}</span>${level===0?`<small class="account-origin" title="${accountLabel(node.accountId)}">${accountLabel(node.accountId)}</small>`:''}${inactive?`<span class="manual-tag" title="${inactiveTags.has(node.id)?'Tag manual':'Tag moștenit de la părinte'}">Inactiv${inactiveTags.has(node.id)?'':' ↳'}</span>`:''}</div></td>${cellValues(aggregate(included))}</tr>`;if(node.children&&expanded.has(node.id))node.children.forEach(child=>row(child,level+1,inactive));}
-campaigns.forEach(c=>row(c,0));$('table-body').innerHTML=html||`<tr><td class="empty" colspan="${visible.size+1}">Nu există date pentru perioada și filtrele selectate. Date demo: 1–30 iunie 2026.</td></tr>`;
-$('table-foot').innerHTML=`<tr><td>Total selecție <span style="font-weight:400;color:#6e8476;margin-left:8px;font-size:11px">${rows.length} creative</span></td>${cellValues(total)}</tr>`;
-$('campaign-count').textContent=campaignCount+' campanii';$('selection-count').textContent=rows.length;$('column-count').textContent=visible.size;$('row-count').textContent=`${campaignCount} campanii · ${campaigns.flatMap(c=>c.children.filter(a=>filteredLeaves(a,inactiveTags.has(c.id)).length)).length} adseturi · ${rows.length} creative în selecție`;
-$('collapse-all').textContent=expanded.size?'⊟ Restrânge tot':'⊞ Extinde tot';}
-function renderEntities(){let html='';const q=entitySearch.trim().toLowerCase();const activeAccounts=accounts.filter(a=>selectedAccounts.has(a.id));if(!activeAccounts.some(a=>a.id===entityAccountFilter))entityAccountFilter='all';$('entity-account-filter').innerHTML='<option value="all">Toate conturile</option>'+activeAccounts.map(a=>`<option value="${a.id}" ${a.id===entityAccountFilter?'selected':''}>${a.name}</option>`).join('');function matches(node){if(!q)return true;return node.name.toLowerCase().includes(q)||(node.children&&node.children.some(matches));}function option(node,level,parentInactive=false){if(!matches(node))return;const inherited=parentInactive;const tagged=inactiveTags.has(node.id);const desc=leaves(node);const count=desc.filter(r=>selected.has(r.id)).length;const open=q||entityExpanded.has(node.id);const hasChildren=!!node.children;html+=`<div class="entity-option ${['c-level','a-level','r-level'][level]}"><button class="entity-toggle" data-entity-toggle="${node.id}" aria-expanded="${open}" ${hasChildren?'':'disabled'}>${hasChildren?(open?'−':'+'):' '}</button><label class="option"><input type="checkbox" data-entity="${node.id}" ${count===desc.length?'checked':''}><span>${node.name}</span></label><button class="tag-button ${tagged?'tagged':''}" data-tag="${node.id}" aria-pressed="${tagged}" aria-label="Tag Inactiv pentru ${node.name}">${tagged?'Inactiv ×':'+ Inactiv'}</button>${inherited?'<small>Inactiv prin părinte</small>':''}</div>`;if(hasChildren&&open)node.children.forEach(n=>option(n,level+1,inherited||tagged));}for(const account of activeAccounts){if(entityAccountFilter!=='all'&&account.id!==entityAccountFilter)continue;const list=scopedCampaigns().filter(c=>c.accountId===account.id&&matches(c));if(!list.length)continue;html+=`<section class="entity-account-section"><h3>${account.name}<small>${list.length} campanii</small></h3>`;list.forEach(c=>option(c,0));html+='</section>';}$('entity-options').innerHTML=html||'<p class="empty entity-empty">Nu am găsit campanii sau adseturi după acest search.</p>';$('expand-entities').textContent=entityExpanded.size?'⊟ Restrânge':'⊞ Desfășoară';$('entity-options').querySelectorAll('input').forEach(el=>{const desc=leaves(allNodes.find(n=>n.id===el.dataset.entity));const count=desc.filter(r=>selected.has(r.id)).length;el.indeterminate=count>0&&count<desc.length;});}
-function renderDateButton(){if($('date-range-label')){$('date-range-label').textContent=rangeLabel(dateFrom,dateTo);$('date-preset-label').textContent=datePreset;}}
-function renderDatePicker(){renderDateButton();$('picker-from').value=pendingFrom;$('picker-to').value=pendingTo;$('date-presets').innerHTML=datePresets().map(([label,from,to])=>`<button type="button" data-preset="${label}" class="${label===datePreset?'active':''}">${label}</button>`).join('');$('calendar-title').textContent=monthFmt.format(dateObj(calendarMonth)).toUpperCase();const start=dateObj(monthStart(calendarMonth));const end=dateObj(monthEnd(calendarMonth));const first=start.getDay();let cells='';for(let i=0;i<first;i++)cells+='<span></span>';for(let day=1;day<=end.getDate();day++){const date=isoDate(new Date(start.getFullYear(),start.getMonth(),day));const selected=date===pendingFrom||date===pendingTo;const inRange=date>pendingFrom&&date<pendingTo;cells+=`<button type="button" data-date="${date}" class="${selected?'selected ':''}${inRange?'in-range':''}">${day}</button>`;}$('calendar-grid').innerHTML=cells;$('date-selection-note').textContent=rangeLabel(pendingFrom,pendingTo);}
-async function applyDateRange(){if(!pendingFrom||!pendingTo||pendingFrom>pendingTo){$('period-error').textContent='Data de început trebuie să fie înaintea datei de sfârșit.';return;}$('period-error').textContent='';dateFrom=pendingFrom;dateTo=pendingTo;renderDateButton();$('date-dialog').close();await loadReport();render();}
-function renderColumns(){let group='';$('column-options').innerHTML=columns.map(([id,label,type,g])=>{let title=g!==group?`<h3 class="column-group">${g}</h3>`:'';group=g;return title+`<label class="option"><input type="checkbox" data-column="${id}" ${visible.has(id)?'checked':''}>${label}${g==='Indicatori calculați'?'<small>Calculat</small>':''}</label>`;}).join('');}
-document.addEventListener('click',e=>{const toggle=e.target.closest('[data-toggle]');if(toggle){const id=toggle.dataset.toggle;expanded.has(id)?expanded.delete(id):expanded.add(id);render();}const entityToggle=e.target.closest('[data-entity-toggle]');if(entityToggle&&!entityToggle.disabled){const id=entityToggle.dataset.entityToggle;entityExpanded.has(id)?entityExpanded.delete(id):entityExpanded.add(id);renderEntities();return;}const panel=e.target.closest('[data-panel]');if(panel){panel.dataset.panel==='entities'?renderEntities():renderColumns();$(panel.dataset.panel+'-dialog').showModal();}if(e.target.closest('.close'))e.target.closest('dialog').close();});
-$('entity-options').addEventListener('change',e=>{if(!e.target.matches('[data-entity]'))return;const node=allNodes.find(n=>n.id===e.target.dataset.entity);leaves(node).forEach(r=>e.target.checked?selected.add(r.id):selected.delete(r.id));const id=e.target.dataset.entity;renderEntities();$('entity-options').querySelector(`[data-entity="${id}"]`).focus();render();});
-$('column-options').addEventListener('change',e=>{const id=e.target.dataset.column;if(!id)return;e.target.checked?visible.add(id):visible.delete(id);render();});
-$('tag-filter').addEventListener('change',e=>{tagFilter=e.target.value;render();});
-function renderAccountSummary(){const chosen=accounts.filter(a=>selectedAccounts.has(a.id));currency=chosen[0]?.currency||'USD';$('currency').textContent=chosen.length?currency:'—';$('accounts-summary').textContent=chosen.length===1?chosen[0].name:chosen.length+' conturi selectate';const portfolioNames=[...new Set(chosen.map(a=>(portfolios.find(p=>p.id===a.portfolioId)?.name||'Meta Ads').split(' · ')[0]))];$('accounts-context').textContent=chosen.length?portfolioNames.join(' + ')+' · '+currency:'Selectează conturile pentru raport';$('account-selection-note').textContent=chosen.length+' conturi · selecția se aplică imediat';}
-function renderAccounts(){const chosen=accounts.filter(a=>selectedAccounts.has(a.id));const selectedCurrency=chosen[0]?.currency;$('account-options').innerHTML=portfolios.map(p=>`<section class="portfolio-group"><h3>${p.name}</h3><small>Business Portfolio · ${accounts.filter(a=>a.portfolioId===p.id).length} conturi</small>${accounts.filter(a=>a.portfolioId===p.id).map(a=>{const incompatible=selectedCurrency&&a.currency!==selectedCurrency;return `<label class="account-option ${selectedAccounts.has(a.id)?'chosen':''} ${incompatible?'unavailable':''}"><input type="checkbox" data-account="${a.id}" ${selectedAccounts.has(a.id)?'checked':''} ${incompatible?'disabled':''}><span><strong>${a.name}</strong><small>${a.originalName&&a.originalName!==a.name?a.originalName+' · ':''}${a.id}</small>${incompatible?'<small>Deselectează conturile '+selectedCurrency+' pentru a selecta '+a.currency+'.</small>':''}</span><span class="account-currency">${a.currency}</span></label>`;}).join('')}</section>`).join('');}
-function setAccountSelection(ids){if(!Array.isArray(ids)||ids.some(id=>!accountById(id)))throw Error('Cont necunoscut.');if(new Set(ids.map(id=>accountById(id).currency)).size>1)throw Error('Selectează conturi cu aceeași monedă.');selectedAccounts.clear();ids.forEach(id=>selectedAccounts.add(id));savePreferences();render();renderAccounts();renderEntities();}
-$('accounts-button').onclick=()=>{renderAccounts();$('accounts-dialog').showModal();};
-$('clear-accounts').onclick=()=>{setAccountSelection([]);$('account-error').textContent='';};
-$('account-options').addEventListener('change',e=>{const id=e.target.dataset.account;if(!id)return;const ids=new Set(selectedAccounts);e.target.checked?ids.add(id):ids.delete(id);try{setAccountSelection([...ids]);$('account-error').textContent='';}catch(error){$('account-error').textContent=error.message;renderAccounts();}$('account-options').querySelector(`[data-account="${id}"]`)?.focus();});
-$('date-range-button').onclick=()=>{pendingFrom=dateFrom;pendingTo=dateTo;calendarMonth=monthStart(dateFrom);pickingRange=false;renderDatePicker();$('date-dialog').showModal();};
-$('date-cancel').onclick=()=>$('date-dialog').close();
-$('date-apply').onclick=()=>applyDateRange();
-$('calendar-prev').onclick=()=>{calendarMonth=shiftMonths(calendarMonth,-1);renderDatePicker();};
-$('calendar-next').onclick=()=>{calendarMonth=shiftMonths(calendarMonth,1);renderDatePicker();};
-$('date-presets').addEventListener('click',e=>{const button=e.target.closest('[data-preset]');if(!button)return;const preset=datePresets().find(([label])=>label===button.dataset.preset);if(!preset)return;datePreset=preset[0];pendingFrom=preset[1];pendingTo=preset[2];calendarMonth=monthStart(pendingFrom);pickingRange=false;renderDatePicker();});
-$('calendar-grid').addEventListener('click',e=>{const button=e.target.closest('[data-date]');if(!button)return;const date=button.dataset.date;if(!pickingRange){pendingFrom=date;pendingTo=date;pickingRange=true;}else{if(date<pendingFrom){pendingTo=pendingFrom;pendingFrom=date;}else pendingTo=date;pickingRange=false;}datePreset='Custom';renderDatePicker();});
-$('picker-from').addEventListener('change',e=>{pendingFrom=e.target.value;datePreset='Custom';pickingRange=false;calendarMonth=monthStart(pendingFrom||calendarMonth);renderDatePicker();});
-$('picker-to').addEventListener('change',e=>{pendingTo=e.target.value;datePreset='Custom';pickingRange=false;renderDatePicker();});
+const $ = (id) => document.getElementById(id);
+const number = new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 0 });
+const decimal = new Intl.NumberFormat("ro-RO", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const dateFmt = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+const monthFmt = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  year: "numeric",
+});
+function dateObj(value) {
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+function isoDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+function shiftDays(value, days) {
+  const d = dateObj(value);
+  d.setDate(d.getDate() + days);
+  return isoDate(d);
+}
+function monthStart(value) {
+  const d = dateObj(value);
+  return isoDate(new Date(d.getFullYear(), d.getMonth(), 1));
+}
+function monthEnd(value) {
+  const d = dateObj(value);
+  return isoDate(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+}
+function shiftMonths(value, months) {
+  const d = dateObj(value);
+  return isoDate(new Date(d.getFullYear(), d.getMonth() + months, 1));
+}
+function rangeLabel(from, to) {
+  const a = dateObj(from),
+    b = dateObj(to);
+  if (a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth())
+    return (
+      new Intl.DateTimeFormat("en-US", { month: "short" }).format(a) +
+      " " +
+      a.getDate() +
+      " – " +
+      b.getDate() +
+      ", " +
+      b.getFullYear()
+    );
+  return dateFmt.format(a) + " – " + dateFmt.format(b);
+}
+function todayIso() {
+  return isoDate(new Date());
+}
+function datePresets() {
+  const today = todayIso(),
+    yesterday = shiftDays(today, -1),
+    weekStart = shiftDays(today, -dateObj(today).getDay()),
+    lastWeekEnd = shiftDays(weekStart, -1),
+    lastWeekStart = shiftDays(lastWeekEnd, -6),
+    thisMonthStart = monthStart(today),
+    lastMonthDate = shiftMonths(thisMonthStart, -1);
+  return [
+    ["Custom", dateFrom, dateTo],
+    ["Today", today, today],
+    ["Yesterday", yesterday, yesterday],
+    ["This week", weekStart, today],
+    ["Last 7 days", shiftDays(today, -7), yesterday],
+    ["Last week", lastWeekStart, lastWeekEnd],
+    ["Last 14 days", shiftDays(today, -13), today],
+    ["This month", thisMonthStart, today],
+    ["Last 30 days", shiftDays(today, -29), today],
+    ["Last month", lastMonthDate, monthEnd(lastMonthDate)],
+    ["All time", "2026-06-01", today],
+  ];
+}
+function divide(a, b, m = 1) {
+  return b ? (a / b) * m : null;
+}
+function aggregate(rows) {
+  const s = Object.fromEntries(
+    baseKeys.map((k) => [
+      k,
+      rows.reduce((sum, r) => sum + Number(r[k] || 0), 0),
+    ]),
+  );
+  return {
+    ...s,
+    cpl: divide(s.spend, s.leadsGc),
+    cpl1: divide(s.spend, s.l1sent),
+    cpgrad: divide(s.spend, s.graduates),
+    gradRate: divide(s.graduates, s.l1sent, 100),
+    cppaid: divide(s.spend, s.paid),
+    roas: divide(s.revenue, s.spend),
+    paidRate: divide(s.paid, s.leadsGc, 100),
+  };
+}
+function format(v, type) {
+  if (v === null) return "—";
+  return type === "money"
+    ? decimal.format(v) + " " + currency
+    : type === "percent"
+      ? decimal.format(v) + "%"
+      : type === "ratio"
+        ? decimal.format(v) + "×"
+        : number.format(v);
+}
+function filteredLeaves(node, parentInactive = false) {
+  if (!selectedAccounts.has(node.accountId)) return [];
+  const inactive = parentInactive || inactiveTags.has(node.id);
+  if (tagFilter === "exclude" && inactive) return [];
+  return node.children
+    ? node.children.flatMap((n) => filteredLeaves(n, inactive))
+    : selected.has(node.id) && (tagFilter !== "only" || inactive)
+      ? [periodData(node)].filter(Boolean)
+      : [];
+}
+function cellValues(s) {
+  return columns
+    .filter((c) => visible.has(c[0]))
+    .map(
+      ([key, label, type, group]) =>
+        `<td class="${group === "Indicatori calculați" ? "derived " : ""}${key === "roas" && s[key] >= 1 ? "roas-good" : ""}">${format(s[key], type)}</td>`,
+    )
+    .join("");
+}
+function accountLabel(accountId) {
+  return accountById(accountId)?.name || accountId || "Cont necunoscut";
+}
+function render() {
+  renderAccountSummary();
+  const rows = campaigns.flatMap((c) => filteredLeaves(c));
+  const total = aggregate(rows);
+  const cards = [
+    ["Spend", format(total.spend, "money"), "Buget cheltuit", "↗"],
+    [
+      "Leads GC",
+      format(total.leadsGc, "number"),
+      "Leaduri GetCourse în selecția curentă",
+      "♧",
+    ],
+    [
+      "Absolvit",
+      format(total.graduates, "number"),
+      format(total.gradRate, "percent") + " din L1 trimis",
+      "✓",
+    ],
+    [
+      "Com plătită",
+      format(total.paid, "number"),
+      format(total.revenue, "money") + " venit",
+      "▣",
+    ],
+    ["ROAS", format(total.roas, "ratio"), "Venit / buget cheltuit", "↗"],
+  ];
+  $("metrics").innerHTML = cards
+    .map(
+      ([label, value, detail, icon]) =>
+        `<article class="metric"><div class="metric-label">${label}<span>${icon}</span></div><div class="metric-value">${value}</div><div class="metric-detail">${detail}</div></article>`,
+    )
+    .join("");
+  $("table-head").innerHTML =
+    `<tr><th scope="col"><div class="hierarchy-head">Campanie / Adset / Creative <small>DENUMIRE</small></div></th>${columns
+      .filter((c) => visible.has(c[0]))
+      .map((c) => `<th scope="col" title="${c[3]}">${c[1]}</th>`)
+      .join("")}</tr>`;
+  let html = "",
+    campaignCount = 0,
+    adsetCount = 0;
+  function row(node, level, parentInactive = false) {
+    const inactive = parentInactive || inactiveTags.has(node.id);
+    const included = filteredLeaves(node, parentInactive);
+    if (!included.length) return;
+    if (level === 0) campaignCount++;
+    if (level === 1) adsetCount++;
+    const kind = ["campaign", "adset", "creative"][level];
+    html += `<tr class="${kind} ${inactive ? "inactive-row" : ""}"><td><div class="row-label">${node.children ? `<button class="toggle" data-toggle="${node.id}" aria-expanded="${expanded.has(node.id)}" aria-label="${expanded.has(node.id) ? "Restrânge" : "Extinde"} ${node.name}">${expanded.has(node.id) ? "−" : "+"}</button>` : '<span class="type-icon">▧</span>'}<span class="name" title="${node.name}">${node.name}</span>${level === 0 ? `<small class="account-origin" title="${accountLabel(node.accountId)}">${accountLabel(node.accountId)}</small>` : ""}${inactive ? `<span class="manual-tag" title="${inactiveTags.has(node.id) ? "Tag manual" : "Tag moștenit de la părinte"}">Inactiv${inactiveTags.has(node.id) ? "" : " ↳"}</span>` : ""}</div></td>${cellValues(aggregate(included))}</tr>`;
+    if (node.children && expanded.has(node.id))
+      node.children.forEach((child) => row(child, level + 1, inactive));
+  }
+  campaigns.forEach((c) => row(c, 0));
+  $("table-body").innerHTML =
+    html ||
+    `<tr><td class="empty" colspan="${visible.size + 1}">Nu există date pentru perioada și filtrele selectate. Date demo: 1–30 iunie 2026.</td></tr>`;
+  $("table-foot").innerHTML =
+    `<tr><td>Total selecție <span style="font-weight:400;color:#6e8476;margin-left:8px;font-size:11px">${rows.length} creative</span></td>${cellValues(total)}</tr>`;
+  $("campaign-count").textContent = campaignCount + " campanii";
+  $("selection-count").textContent = rows.length;
+  $("column-count").textContent = visible.size;
+  $("row-count").textContent =
+    `${campaignCount} campanii · ${campaigns.flatMap((c) => c.children.filter((a) => filteredLeaves(a, inactiveTags.has(c.id)).length)).length} adseturi · ${rows.length} creative în selecție`;
+  $("collapse-all").textContent = expanded.size
+    ? "⊟ Restrânge tot"
+    : "⊞ Extinde tot";
+}
+function renderEntities() {
+  let html = "";
+  const q = entitySearch.trim().toLowerCase();
+  const activeAccounts = accounts.filter((a) => selectedAccounts.has(a.id));
+  if (!activeAccounts.some((a) => a.id === entityAccountFilter))
+    entityAccountFilter = "all";
+  $("entity-account-filter").innerHTML =
+    '<option value="all">Toate conturile</option>' +
+    activeAccounts
+      .map(
+        (a) =>
+          `<option value="${a.id}" ${a.id === entityAccountFilter ? "selected" : ""}>${a.name}</option>`,
+      )
+      .join("");
+  function matches(node) {
+    if (!q) return true;
+    return (
+      node.name.toLowerCase().includes(q) ||
+      (node.children && node.children.some(matches))
+    );
+  }
+  function option(node, level, parentInactive = false) {
+    if (!matches(node)) return;
+    const inherited = parentInactive;
+    const tagged = inactiveTags.has(node.id);
+    const desc = leaves(node);
+    const count = desc.filter((r) => selected.has(r.id)).length;
+    const open = q || entityExpanded.has(node.id);
+    const hasChildren = !!node.children;
+    html += `<div class="entity-option ${["c-level", "a-level", "r-level"][level]}"><button class="entity-toggle" data-entity-toggle="${node.id}" aria-expanded="${open}" ${hasChildren ? "" : "disabled"}>${hasChildren ? (open ? "−" : "+") : " "}</button><label class="option"><input type="checkbox" data-entity="${node.id}" ${count === desc.length ? "checked" : ""}><span>${node.name}</span></label><button class="tag-button ${tagged ? "tagged" : ""}" data-tag="${node.id}" aria-pressed="${tagged}" aria-label="Tag Inactiv pentru ${node.name}">${tagged ? "Inactiv ×" : "+ Inactiv"}</button>${inherited ? "<small>Inactiv prin părinte</small>" : ""}</div>`;
+    if (hasChildren && open)
+      node.children.forEach((n) => option(n, level + 1, inherited || tagged));
+  }
+  for (const account of activeAccounts) {
+    if (entityAccountFilter !== "all" && account.id !== entityAccountFilter)
+      continue;
+    const list = scopedCampaigns().filter(
+      (c) => c.accountId === account.id && matches(c),
+    );
+    if (!list.length) continue;
+    html += `<section class="entity-account-section"><h3>${account.name}<small>${list.length} campanii</small></h3>`;
+    list.forEach((c) => option(c, 0));
+    html += "</section>";
+  }
+  $("entity-options").innerHTML =
+    html ||
+    '<p class="empty entity-empty">Nu am găsit campanii sau adseturi după acest search.</p>';
+  $("expand-entities").textContent = entityExpanded.size
+    ? "⊟ Restrânge"
+    : "⊞ Desfășoară";
+  $("entity-options")
+    .querySelectorAll("input")
+    .forEach((el) => {
+      const desc = leaves(allNodes.find((n) => n.id === el.dataset.entity));
+      const count = desc.filter((r) => selected.has(r.id)).length;
+      el.indeterminate = count > 0 && count < desc.length;
+    });
+}
+function renderDateButton() {
+  if ($("date-range-label")) {
+    $("date-range-label").textContent = rangeLabel(dateFrom, dateTo);
+    $("date-preset-label").textContent = datePreset;
+  }
+}
+function renderDatePicker() {
+  renderDateButton();
+  $("picker-from").value = pendingFrom;
+  $("picker-to").value = pendingTo;
+  $("date-presets").innerHTML = datePresets()
+    .map(
+      ([label, from, to]) =>
+        `<button type="button" data-preset="${label}" class="${label === datePreset ? "active" : ""}">${label}</button>`,
+    )
+    .join("");
+  $("calendar-title").textContent = monthFmt
+    .format(dateObj(calendarMonth))
+    .toUpperCase();
+  const start = dateObj(monthStart(calendarMonth));
+  const end = dateObj(monthEnd(calendarMonth));
+  const first = start.getDay();
+  let cells = "";
+  for (let i = 0; i < first; i++) cells += "<span></span>";
+  for (let day = 1; day <= end.getDate(); day++) {
+    const date = isoDate(new Date(start.getFullYear(), start.getMonth(), day));
+    const selected = date === pendingFrom || date === pendingTo;
+    const inRange = date > pendingFrom && date < pendingTo;
+    cells += `<button type="button" data-date="${date}" class="${selected ? "selected " : ""}${inRange ? "in-range" : ""}">${day}</button>`;
+  }
+  $("calendar-grid").innerHTML = cells;
+  $("date-selection-note").textContent = rangeLabel(pendingFrom, pendingTo);
+}
+async function applyDateRange() {
+  if (!pendingFrom || !pendingTo || pendingFrom > pendingTo) {
+    $("period-error").textContent =
+      "Data de început trebuie să fie înaintea datei de sfârșit.";
+    return;
+  }
+  $("period-error").textContent = "";
+  dateFrom = pendingFrom;
+  dateTo = pendingTo;
+  renderDateButton();
+  $("date-dialog").close();
+  await loadReport();
+  render();
+}
+function renderColumns() {
+  let group = "";
+  $("column-options").innerHTML = columns
+    .map(([id, label, type, g]) => {
+      let title = g !== group ? `<h3 class="column-group">${g}</h3>` : "";
+      group = g;
+      return (
+        title +
+        `<label class="option"><input type="checkbox" data-column="${id}" ${visible.has(id) ? "checked" : ""}>${label}${g === "Indicatori calculați" ? "<small>Calculat</small>" : ""}</label>`
+      );
+    })
+    .join("");
+}
+document.addEventListener("click", (e) => {
+  const toggle = e.target.closest("[data-toggle]");
+  if (toggle) {
+    const id = toggle.dataset.toggle;
+    expanded.has(id) ? expanded.delete(id) : expanded.add(id);
+    render();
+  }
+  const entityToggle = e.target.closest("[data-entity-toggle]");
+  if (entityToggle && !entityToggle.disabled) {
+    const id = entityToggle.dataset.entityToggle;
+    entityExpanded.has(id) ? entityExpanded.delete(id) : entityExpanded.add(id);
+    renderEntities();
+    return;
+  }
+  const panel = e.target.closest("[data-panel]");
+  if (panel) {
+    panel.dataset.panel === "entities" ? renderEntities() : renderColumns();
+    $(panel.dataset.panel + "-dialog").showModal();
+  }
+  if (e.target.closest(".close")) e.target.closest("dialog").close();
+});
+$("entity-options").addEventListener("change", (e) => {
+  if (!e.target.matches("[data-entity]")) return;
+  const node = allNodes.find((n) => n.id === e.target.dataset.entity);
+  leaves(node).forEach((r) =>
+    e.target.checked ? selected.add(r.id) : selected.delete(r.id),
+  );
+  const id = e.target.dataset.entity;
+  renderEntities();
+  $("entity-options").querySelector(`[data-entity="${id}"]`).focus();
+  render();
+});
+$("column-options").addEventListener("change", (e) => {
+  const id = e.target.dataset.column;
+  if (!id) return;
+  e.target.checked ? visible.add(id) : visible.delete(id);
+  render();
+});
+$("tag-filter").addEventListener("change", (e) => {
+  tagFilter = e.target.value;
+  render();
+});
+function renderAccountSummary() {
+  const chosen = accounts.filter((a) => selectedAccounts.has(a.id));
+  currency = chosen[0]?.currency || "USD";
+  $("currency").textContent = chosen.length ? currency : "—";
+  $("accounts-summary").textContent =
+    chosen.length === 1 ? chosen[0].name : chosen.length + " conturi selectate";
+  const portfolioNames = [
+    ...new Set(
+      chosen.map(
+        (a) =>
+          (
+            portfolios.find((p) => p.id === a.portfolioId)?.name || "Meta Ads"
+          ).split(" · ")[0],
+      ),
+    ),
+  ];
+  $("accounts-context").textContent = chosen.length
+    ? portfolioNames.join(" + ") + " · " + currency
+    : "Selectează conturile pentru raport";
+  $("account-selection-note").textContent =
+    chosen.length + " conturi · selecția se aplică imediat";
+}
+function renderAccounts() {
+  const chosen = accounts.filter((a) => selectedAccounts.has(a.id));
+  const selectedCurrency = chosen[0]?.currency;
+  $("account-options").innerHTML = portfolios
+    .map(
+      (p) =>
+        `<section class="portfolio-group"><h3>${p.name}</h3><small>Business Portfolio · ${accounts.filter((a) => a.portfolioId === p.id).length} conturi</small>${accounts
+          .filter((a) => a.portfolioId === p.id)
+          .map((a) => {
+            const incompatible =
+              selectedCurrency && a.currency !== selectedCurrency;
+            return `<label class="account-option ${selectedAccounts.has(a.id) ? "chosen" : ""} ${incompatible ? "unavailable" : ""}"><input type="checkbox" data-account="${a.id}" ${selectedAccounts.has(a.id) ? "checked" : ""} ${incompatible ? "disabled" : ""}><span><strong>${a.name}</strong><small>${a.originalName && a.originalName !== a.name ? a.originalName + " · " : ""}${a.id}</small>${incompatible ? "<small>Deselectează conturile " + selectedCurrency + " pentru a selecta " + a.currency + ".</small>" : ""}</span><span class="account-currency">${a.currency}</span></label>`;
+          })
+          .join("")}</section>`,
+    )
+    .join("");
+}
+function setAccountSelection(ids) {
+  if (!Array.isArray(ids) || ids.some((id) => !accountById(id)))
+    throw Error("Cont necunoscut.");
+  if (new Set(ids.map((id) => accountById(id).currency)).size > 1)
+    throw Error("Selectează conturi cu aceeași monedă.");
+  selectedAccounts.clear();
+  ids.forEach((id) => selectedAccounts.add(id));
+  savePreferences();
+  render();
+  renderAccounts();
+  renderEntities();
+}
+$("accounts-button").onclick = () => {
+  renderAccounts();
+  $("accounts-dialog").showModal();
+};
+$("clear-accounts").onclick = () => {
+  setAccountSelection([]);
+  $("account-error").textContent = "";
+};
+$("account-options").addEventListener("change", (e) => {
+  const id = e.target.dataset.account;
+  if (!id) return;
+  const ids = new Set(selectedAccounts);
+  e.target.checked ? ids.add(id) : ids.delete(id);
+  try {
+    setAccountSelection([...ids]);
+    $("account-error").textContent = "";
+  } catch (error) {
+    $("account-error").textContent = error.message;
+    renderAccounts();
+  }
+  $("account-options").querySelector(`[data-account="${id}"]`)?.focus();
+});
+$("date-range-button").onclick = () => {
+  pendingFrom = dateFrom;
+  pendingTo = dateTo;
+  calendarMonth = monthStart(dateFrom);
+  pickingRange = false;
+  renderDatePicker();
+  $("date-dialog").showModal();
+};
+$("date-cancel").onclick = () => $("date-dialog").close();
+$("date-apply").onclick = () => applyDateRange();
+$("calendar-prev").onclick = () => {
+  calendarMonth = shiftMonths(calendarMonth, -1);
+  renderDatePicker();
+};
+$("calendar-next").onclick = () => {
+  calendarMonth = shiftMonths(calendarMonth, 1);
+  renderDatePicker();
+};
+$("date-presets").addEventListener("click", (e) => {
+  const button = e.target.closest("[data-preset]");
+  if (!button) return;
+  const preset = datePresets().find(
+    ([label]) => label === button.dataset.preset,
+  );
+  if (!preset) return;
+  datePreset = preset[0];
+  pendingFrom = preset[1];
+  pendingTo = preset[2];
+  calendarMonth = monthStart(pendingFrom);
+  pickingRange = false;
+  renderDatePicker();
+});
+$("calendar-grid").addEventListener("click", (e) => {
+  const button = e.target.closest("[data-date]");
+  if (!button) return;
+  const date = button.dataset.date;
+  if (!pickingRange) {
+    pendingFrom = date;
+    pendingTo = date;
+    pickingRange = true;
+  } else {
+    if (date < pendingFrom) {
+      pendingTo = pendingFrom;
+      pendingFrom = date;
+    } else pendingTo = date;
+    pickingRange = false;
+  }
+  datePreset = "Custom";
+  renderDatePicker();
+});
+$("picker-from").addEventListener("change", (e) => {
+  pendingFrom = e.target.value;
+  datePreset = "Custom";
+  pickingRange = false;
+  calendarMonth = monthStart(pendingFrom || calendarMonth);
+  renderDatePicker();
+});
+$("picker-to").addEventListener("change", (e) => {
+  pendingTo = e.target.value;
+  datePreset = "Custom";
+  pickingRange = false;
+  renderDatePicker();
+});
 
-$('nav-dashboard').onclick=()=>{document.querySelectorAll('.app-page').forEach(p=>p.classList.add('hidden'));$('dashboard-page').classList.remove('hidden');$('nav-dashboard').classList.add('active');$('nav-data').classList.remove('active');};
-$('nav-data').onclick=()=>{document.querySelectorAll('.app-page').forEach(p=>p.classList.add('hidden'));$('data-page').classList.remove('hidden');$('nav-data').classList.add('active');$('nav-dashboard').classList.remove('active');};
-document.querySelectorAll('[data-gc-upload]').forEach(input=>input.addEventListener('change',async()=>{const file=input.files?.[0];if(!file)return;const status=$('gc-import-status');status.textContent='Import '+file.name+'...';try{const response=await fetch('/api/gc/import/'+input.dataset.gcUpload,{method:'POST',headers:{'Content-Type':'text/csv'},body:await file.text()});const result=await response.json();if(!response.ok)throw new Error(result.error||'Importul a eșuat.');status.textContent='Importat '+result.imported+' rânduri din '+file.name+'.';await loadReport();render();}catch(error){status.textContent=error.message;}finally{input.value='';}}));
-$('sync-meta').addEventListener('click',async()=>{const button=$('sync-meta'),status=$('sync-status');button.disabled=true;status.textContent='Import în desfășurare…';try{const response=await fetch('/api/meta/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:dateFrom,to:dateTo})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Importul a eșuat.');await loadReport();status.textContent=`Actualizat · ${result.rowsImported} rânduri importate`;status.className='sync-success';}catch(error){status.textContent=location.hostname.endsWith('github.io')?'Importul este disponibil din aplicația locală.':error.message;status.className='sync-error';}finally{button.disabled=false;}});
-$('expand-entities').onclick=()=>{if(entityExpanded.size){entityExpanded.clear();}else allNodes.filter(n=>n.children).forEach(n=>entityExpanded.add(n.id));renderEntities();};
-$('entity-search').addEventListener('input',e=>{entitySearch=e.target.value;renderEntities();});
-$('entity-account-filter').addEventListener('change',e=>{entityAccountFilter=e.target.value;renderEntities();});
-$('entity-options').addEventListener('click',e=>{const button=e.target.closest('[data-tag]');if(!button)return;const id=button.dataset.tag;inactiveTags.has(id)?inactiveTags.delete(id):inactiveTags.add(id);savePreferences();renderEntities();$('entity-options').querySelector(`[data-tag="${id}"]`).focus();render();});
-$('collapse-all').onclick=()=>{if(expanded.size)expanded.clear();else allNodes.filter(n=>n.children).forEach(n=>expanded.add(n.id));render();};
-$('select-all').onclick=()=>{scopedCampaigns().flatMap(leaves).forEach(n=>selected.add(n.id));renderEntities();render();};
-$('select-none').onclick=()=>{scopedCampaigns().flatMap(leaves).forEach(n=>selected.delete(n.id));renderEntities();render();};
-$('reset').onclick=()=>{campaigns.flatMap(leaves).forEach(n=>selected.add(n.id));tagFilter='all';$('tag-filter').value='all';dateFrom='2026-06-01';dateTo='2026-06-30';pendingFrom=dateFrom;pendingTo=dateTo;datePreset='Custom';$('period-error').textContent='';renderDateButton();render();};
-$('formulas-button').onclick=()=>$('formulas-dialog').showModal();
-document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();}}));
+$("nav-dashboard").onclick = () => {
+  document
+    .querySelectorAll(".app-page")
+    .forEach((p) => p.classList.add("hidden"));
+  $("dashboard-page").classList.remove("hidden");
+  $("nav-dashboard").classList.add("active");
+  $("nav-data").classList.remove("active");
+};
+$("nav-data").onclick = () => {
+  document
+    .querySelectorAll(".app-page")
+    .forEach((p) => p.classList.add("hidden"));
+  $("data-page").classList.remove("hidden");
+  $("nav-data").classList.add("active");
+  $("nav-dashboard").classList.remove("active");
+};
+document.querySelectorAll("[data-gc-upload]").forEach((input) =>
+  input.addEventListener("change", async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    const status = $("gc-import-status");
+    status.textContent = "Import " + file.name + "...";
+    try {
+      const response = await fetch("/api/gc/import/" + input.dataset.gcUpload, {
+        method: "POST",
+        headers: { "Content-Type": "text/csv" },
+        body: await file.text(),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Importul a eșuat.");
+      status.textContent =
+        "Importat " + result.imported + " rânduri din " + file.name + ".";
+      await loadReport();
+      render();
+    } catch (error) {
+      status.textContent = error.message;
+    } finally {
+      input.value = "";
+    }
+  }),
+);
+$("sync-meta").addEventListener("click", async () => {
+  const button = $("sync-meta"),
+    status = $("sync-status");
+  button.disabled = true;
+  status.textContent = "Import în desfășurare…";
+  try {
+    const response = await fetch("/api/meta/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ from: dateFrom, to: dateTo }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Importul a eșuat.");
+    await loadReport();
+    status.textContent = `Actualizat · ${result.rowsImported} rânduri importate`;
+    status.className = "sync-success";
+  } catch (error) {
+    status.textContent = location.hostname.endsWith("github.io")
+      ? "Importul este disponibil din aplicația locală."
+      : error.message;
+    status.className = "sync-error";
+  } finally {
+    button.disabled = false;
+  }
+});
+$("expand-entities").onclick = () => {
+  if (entityExpanded.size) {
+    entityExpanded.clear();
+  } else
+    allNodes.filter((n) => n.children).forEach((n) => entityExpanded.add(n.id));
+  renderEntities();
+};
+$("entity-search").addEventListener("input", (e) => {
+  entitySearch = e.target.value;
+  renderEntities();
+});
+$("entity-account-filter").addEventListener("change", (e) => {
+  entityAccountFilter = e.target.value;
+  renderEntities();
+});
+$("entity-options").addEventListener("click", (e) => {
+  const button = e.target.closest("[data-tag]");
+  if (!button) return;
+  const id = button.dataset.tag;
+  inactiveTags.has(id) ? inactiveTags.delete(id) : inactiveTags.add(id);
+  savePreferences();
+  renderEntities();
+  $("entity-options").querySelector(`[data-tag="${id}"]`).focus();
+  render();
+});
+$("collapse-all").onclick = () => {
+  if (expanded.size) expanded.clear();
+  else allNodes.filter((n) => n.children).forEach((n) => expanded.add(n.id));
+  render();
+};
+$("select-all").onclick = () => {
+  scopedCampaigns()
+    .flatMap(leaves)
+    .forEach((n) => selected.add(n.id));
+  renderEntities();
+  render();
+};
+$("select-none").onclick = () => {
+  scopedCampaigns()
+    .flatMap(leaves)
+    .forEach((n) => selected.delete(n.id));
+  renderEntities();
+  render();
+};
+$("reset").onclick = () => {
+  campaigns.flatMap(leaves).forEach((n) => selected.add(n.id));
+  tagFilter = "all";
+  $("tag-filter").value = "all";
+  dateFrom = "2026-06-01";
+  dateTo = "2026-06-30";
+  pendingFrom = dateFrom;
+  pendingTo = dateTo;
+  datePreset = "Custom";
+  $("period-error").textContent = "";
+  renderDateButton();
+  render();
+};
+$("formulas-button").onclick = () => $("formulas-dialog").showModal();
+document.querySelectorAll("dialog").forEach((d) =>
+  d.addEventListener("click", (e) => {
+    if (e.target === d) {
+      const r = d.getBoundingClientRect();
+      if (
+        e.clientX < r.left ||
+        e.clientX > r.right ||
+        e.clientY < r.top ||
+        e.clientY > r.bottom
+      )
+        d.close();
+    }
+  }),
+);
 renderDateButton();
 render();
-async function loadReport(){if(location.protocol==='file:'||location.hostname.endsWith('github.io'))return;const params=new URLSearchParams({from:dateFrom,to:dateTo});const response=await fetch('/api/report?'+params.toString());if(!response.ok)return;const report=await response.json();if(!report.accounts?.length)return;portfolios=report.portfolios;accounts=report.accounts;campaigns=report.campaigns;allNodes=campaigns.flatMap(c=>[c,...c.children.flatMap(a=>[a,...a.children])]);selectedAccounts.clear();accounts.forEach(a=>selectedAccounts.add(a.id));selected.clear();campaigns.flatMap(leaves).forEach(n=>selected.add(n.id));expanded.clear();campaigns.forEach(c=>{expanded.add(c.id);c.children.forEach(a=>expanded.add(a.id));});render();}
-loadReport().catch(()=>{});
-if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'configure_campaign_view',description:'Configure visible columns and the manual inactive tag filter.',inputSchema:{type:'object',properties:{columns:{type:'array',items:{type:'string',enum:columns.map(c=>c[0])}},tagFilter:{type:'string',enum:['all','exclude','only']}},required:['columns'],additionalProperties:false},annotations:{readOnlyHint:false},execute(input){if(!input||!Array.isArray(input.columns)||input.columns.some(id=>!columns.some(c=>c[0]===id))||(input.tagFilter!==undefined&&!['all','exclude','only'].includes(input.tagFilter)))throw new Error('Invalid view configuration');visible.clear();input.columns.forEach(id=>visible.add(id));if(input.tagFilter!==undefined)tagFilter=input.tagFilter;$('tag-filter').value=tagFilter;renderColumns();render();return {columns:[...visible],tagFilter};}})).catch(()=>{});}catch{}}
+async function loadReport() {
+  if (location.protocol === "file:" || location.hostname.endsWith("github.io"))
+    return;
+  const params = new URLSearchParams({ from: dateFrom, to: dateTo });
+  const response = await fetch("/api/report?" + params.toString());
+  if (!response.ok) return;
+  const report = await response.json();
+  if (!report.accounts?.length) return;
+  portfolios = report.portfolios;
+  accounts = report.accounts;
+  campaigns = report.campaigns;
+  allNodes = campaigns.flatMap((c) => [
+    c,
+    ...c.children.flatMap((a) => [a, ...a.children]),
+  ]);
+  selectedAccounts.clear();
+  accounts.forEach((a) => selectedAccounts.add(a.id));
+  selected.clear();
+  campaigns.flatMap(leaves).forEach((n) => selected.add(n.id));
+  expanded.clear();
+  campaigns.forEach((c) => {
+    expanded.add(c.id);
+    c.children.forEach((a) => expanded.add(a.id));
+  });
+  render();
+}
+loadReport().catch(() => {});
+if (document.modelContext?.registerTool) {
+  try {
+    Promise.resolve(
+      document.modelContext.registerTool({
+        name: "configure_campaign_view",
+        description:
+          "Configure visible columns and the manual inactive tag filter.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            columns: {
+              type: "array",
+              items: { type: "string", enum: columns.map((c) => c[0]) },
+            },
+            tagFilter: { type: "string", enum: ["all", "exclude", "only"] },
+          },
+          required: ["columns"],
+          additionalProperties: false,
+        },
+        annotations: { readOnlyHint: false },
+        execute(input) {
+          if (
+            !input ||
+            !Array.isArray(input.columns) ||
+            input.columns.some((id) => !columns.some((c) => c[0] === id)) ||
+            (input.tagFilter !== undefined &&
+              !["all", "exclude", "only"].includes(input.tagFilter))
+          )
+            throw new Error("Invalid view configuration");
+          visible.clear();
+          input.columns.forEach((id) => visible.add(id));
+          if (input.tagFilter !== undefined) tagFilter = input.tagFilter;
+          $("tag-filter").value = tagFilter;
+          renderColumns();
+          render();
+          return { columns: [...visible], tagFilter };
+        },
+      }),
+    ).catch(() => {});
+  } catch {}
+}
