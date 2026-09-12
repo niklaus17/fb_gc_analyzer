@@ -389,9 +389,9 @@ function datePresets() {
     ["This week", weekStart, today],
     ["Last 7 days", shiftDays(today, -7), yesterday],
     ["Last week", lastWeekStart, lastWeekEnd],
-    ["Last 14 days", shiftDays(today, -13), today],
+    ["Last 14 days", shiftDays(today, -14), yesterday],
     ["This month", thisMonthStart, today],
-    ["Last 30 days", shiftDays(today, -29), today],
+    ["Last 30 days", shiftDays(today, -30), yesterday],
     ["Last month", lastMonthDate, monthEnd(lastMonthDate)],
     ["All time", "2026-06-01", today],
   ];
