@@ -88,6 +88,49 @@ app.get('/api/report', async (request, response) => {
   GROUP BY COALESCE(utm_campaign,''),COALESCE(utm_content,''),COALESCE(utm_term,'')`, [from, to]);
   const gcByPath = new Map(gcRows.rows.map((row) => [[row.campaign_name,row.adset_name,row.ad_name].join('||'), row]));
 
+  const gcAgeRows = await pool.query(`WITH lead_base AS (
+    SELECT lower(email) AS email, COALESCE(lead_date, created_at::date) AS lead_date, utm_campaign, utm_content, utm_term
+    FROM gc_leads WHERE COALESCE(lead_date, created_at::date) BETWEEN $1 AND $2
+  ), age_events AS (
+    SELECT lower(email) AS email, event_type AS age_bucket
+    FROM gc_events WHERE event_type IN ('sub_18','18_21','22_24','25_34','35_44','45_plus')
+  ), order_stats AS (
+    SELECT lower(o.email) AS email, COUNT(*)::int AS orders,
+      MAX(CASE WHEN o.paid_amount>0 OR lower(o.status) LIKE '%finalizat%' THEN 1 ELSE 0 END)::int AS paid,
+      COALESCE(SUM(o.paid_amount),0)::float AS revenue
+    FROM gc_orders o GROUP BY lower(o.email)
+  ), event_stats AS (
+    SELECT lower(email) AS email,
+      MAX(CASE WHEN event_type='l1in' THEN 1 ELSE 0 END)::int AS l1in,
+      MAX(CASE WHEN event_type='l1sent' THEN 1 ELSE 0 END)::int AS l1sent,
+      MAX(CASE WHEN event_type='graduates' THEN 1 ELSE 0 END)::int AS graduates
+    FROM gc_events GROUP BY lower(email)
+  )
+  SELECT COALESCE(lead_base.utm_campaign,'') AS campaign_name,COALESCE(lead_base.utm_content,'') AS adset_name,COALESCE(lead_base.utm_term,'') AS ad_name,
+    age_events.age_bucket,
+    COUNT(DISTINCT lead_base.email)::int AS leads_gc,
+    COALESCE(SUM(COALESCE(event_stats.l1in,0)),0)::int AS l1in,
+    COALESCE(SUM(COALESCE(event_stats.l1sent,0)),0)::int AS l1sent,
+    COALESCE(SUM(COALESCE(event_stats.graduates,0)),0)::int AS graduates,
+    COALESCE(SUM(COALESCE(order_stats.orders,0)),0)::int AS orders,
+    COUNT(DISTINCT CASE WHEN COALESCE(order_stats.paid,0)>0 THEN lead_base.email END)::int AS paid,
+    COALESCE(SUM(COALESCE(order_stats.revenue,0)),0)::float AS revenue
+  FROM lead_base
+  JOIN age_events ON age_events.email=lead_base.email
+  LEFT JOIN order_stats ON order_stats.email=lead_base.email
+  LEFT JOIN event_stats ON event_stats.email=lead_base.email
+  GROUP BY COALESCE(lead_base.utm_campaign,''),COALESCE(lead_base.utm_content,''),COALESCE(lead_base.utm_term,''),age_events.age_bucket`, [from, to]);
+  const gcAgeByPath = new Map();
+  for (const row of gcAgeRows.rows) {
+    const key = [row.campaign_name,row.adset_name,row.ad_name].join('||');
+    if (!gcAgeByPath.has(key)) gcAgeByPath.set(key, {});
+    gcAgeByPath.get(key)[row.age_bucket] = {
+      leadsGc: Number(row.leads_gc || 0), l1in: Number(row.l1in || 0), l1sent: Number(row.l1sent || 0),
+      graduates: Number(row.graduates || 0), orders: Number(row.orders || 0), paid: Number(row.paid || 0),
+      revenue: Number(row.revenue || 0),
+    };
+  }
+
   const rows = await pool.query(`WITH base AS (
     SELECT account_id,ad_id,COALESCE(SUM(spend),0)::float AS spend,COALESCE(SUM(leads),0)::int AS leads
     FROM meta_ad_insights_daily WHERE insight_date BETWEEN $2 AND $3 GROUP BY account_id,ad_id
@@ -124,21 +167,23 @@ app.get('/api/report', async (request, response) => {
     if (!campaign.adsets.has(row.adset_id)) campaign.adsets.set(row.adset_id, {
       id: row.adset_id, accountId: row.account_id, name: row.adset_name, children: [],
     });
+    const pathKey = [row.campaign_name,row.adset_name,row.ad_name].join('||');
     campaign.adsets.get(row.adset_id).children.push({
       id: row.ad_id, accountId: row.account_id, name: row.ad_name, spend: row.spend,
-      leadsFb: row.leads, leadsGc: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.leads_gc || 0),
-      l1in: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.l1in || 0),
-      l1sent: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.l1sent || 0),
-      graduates: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.graduates || 0),
-      orders: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.orders || 0),
-      paid: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.paid || 0),
-      revenue: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.revenue || 0),
-      sub_18: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.sub_18 || 0),
-      '18_21': Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.age_18_21 || 0),
-      '22_24': Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.age_22_24 || 0),
-      '25_34': Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.age_25_34 || 0),
-      '35_44': Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.age_35_44 || 0),
-      '45_plus': Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.age_45_plus || 0),
+      ageBreakdown: gcAgeByPath.get(pathKey) || {},
+      leadsFb: row.leads, leadsGc: Number(gcByPath.get(pathKey)?.leads_gc || 0),
+      l1in: Number(gcByPath.get(pathKey)?.l1in || 0),
+      l1sent: Number(gcByPath.get(pathKey)?.l1sent || 0),
+      graduates: Number(gcByPath.get(pathKey)?.graduates || 0),
+      orders: Number(gcByPath.get(pathKey)?.orders || 0),
+      paid: Number(gcByPath.get(pathKey)?.paid || 0),
+      revenue: Number(gcByPath.get(pathKey)?.revenue || 0),
+      sub_18: Number(gcByPath.get(pathKey)?.sub_18 || 0),
+      '18_21': Number(gcByPath.get(pathKey)?.age_18_21 || 0),
+      '22_24': Number(gcByPath.get(pathKey)?.age_22_24 || 0),
+      '25_34': Number(gcByPath.get(pathKey)?.age_25_34 || 0),
+      '35_44': Number(gcByPath.get(pathKey)?.age_35_44 || 0),
+      '45_plus': Number(gcByPath.get(pathKey)?.age_45_plus || 0),
     });
   }
   const campaigns = [...campaignMap.values()].map(({ adsets, ...campaign }) => ({

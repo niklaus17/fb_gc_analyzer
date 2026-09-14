@@ -183,6 +183,7 @@ function periodData(ad) {
   if (!ad.daily)
     return {
       id: ad.id,
+      ageBreakdown: ad.ageBreakdown || {},
       ...Object.fromEntries(baseKeys.map((k) => [k, Number(ad[k] || 0)])),
     };
   const days = ad.daily.filter((d) => d.date >= dateFrom && d.date <= dateTo);
@@ -332,10 +333,40 @@ function cellValues(s) {
 function accountLabel(accountId) {
   return accountById(accountId)?.name || accountId || "Cont necunoscut";
 }
+function aggregateAgeBreakdown(rows) {
+  const result = Object.fromEntries(ageKeys.map((key) => [key, { leadsGc: 0, l1in: 0, l1sent: 0, graduates: 0, orders: 0, paid: 0, revenue: 0 }]));
+  for (const row of rows) {
+    for (const key of ageKeys) {
+      const source = row.ageBreakdown?.[key];
+      if (!source) continue;
+      for (const metric of ["leadsGc", "l1in", "l1sent", "graduates", "orders", "paid", "revenue"])
+        result[key][metric] += Number(source[metric] || 0);
+    }
+  }
+  return result;
+}
+function renderAgeAnalysis(rows) {
+  const byAge = aggregateAgeBreakdown(rows);
+  const entries = ageKeys.map((key) => ({ key, ...byAge[key], paidRate: divide(byAge[key].paid, byAge[key].leadsGc, 100), graduationRate: divide(byAge[key].graduates, byAge[key].l1sent, 100) }));
+  const bestPaid = entries.filter((row) => row.paid).sort((a, b) => b.paid - a.paid)[0];
+  const bestRate = entries.filter((row) => row.paidRate !== null).sort((a, b) => b.paidRate - a.paidRate)[0];
+  const biggestAudience = entries.filter((row) => row.leadsGc).sort((a, b) => b.leadsGc - a.leadsGc)[0];
+  const insightCards = [
+    ["Cele mai multe leaduri", biggestAudience ? biggestAudience.key : "—", biggestAudience ? format(biggestAudience.leadsGc, "number") + " leaduri" : "Nu sunt date"],
+    ["Cele mai multe plăți", bestPaid ? bestPaid.key : "—", bestPaid ? format(bestPaid.paid, "number") + " plăți" : "Nu sunt plăți"],
+    ["Cea mai bună rată Lead → Plătit", bestRate ? bestRate.key : "—", bestRate ? format(bestRate.paidRate, "percent") : "Nu sunt date"],
+  ];
+  $("age-insights").innerHTML = insightCards.map(([label, value, detail]) => `<article><small>${label}</small><strong>${value}</strong><span>${detail}</span></article>`).join("");
+  $("age-head").innerHTML = `<tr><th>Vârstă</th><th>Leads GC</th><th>L1 trimis</th><th>Absolvit</th><th>Com creată</th><th>Com plătită</th><th>Venit</th><th>Lead → Plătit %</th><th>Absolvit / L1 trimis</th></tr>`;
+  $("age-body").innerHTML = entries.some((row) => row.leadsGc || row.l1sent || row.paid)
+    ? entries.map((row) => `<tr><td><strong>${row.key}</strong></td><td>${format(row.leadsGc, "number")}</td><td>${format(row.l1sent, "number")}</td><td>${format(row.graduates, "number")}</td><td>${format(row.orders, "number")}</td><td>${format(row.paid, "number")}</td><td>${format(row.revenue, "money")}</td><td>${format(row.paidRate, "percent")}</td><td>${format(row.graduationRate, "percent")}</td></tr>`).join("")
+    : `<tr><td class="empty" colspan="9">Nu există încă date de vârstă pentru selecția curentă. Încarcă listele de emailuri pe vârstă în pagina Date.</td></tr>`;
+}
 function render() {
   renderAccountSummary();
   const rows = campaigns.flatMap((c) => filteredLeaves(c));
   const total = aggregate(rows);
+  renderAgeAnalysis(rows);
   const cards = [
     ["Spend", format(total.spend, "money"), "Buget cheltuit", "↗"],
     [
