@@ -824,7 +824,9 @@ async function loadGcData() {
     $("gc-data-body").innerHTML = rows.length
       ? rows.map((row) => `<tr>${keys.map((key) => `<td>${row[key] ?? ""}</td>`).join("")}</tr>`).join("")
       : `<tr><td class="empty" colspan="${keys.length}">Nu există date pentru filtrul ales.</td></tr>`;
-    status.textContent = rows.length + " din " + (result.total ?? rows.length) + " rânduri afișate.";
+    status.textContent = Number.isFinite(Number(result.total))
+      ? rows.length + " din " + result.total + " rânduri afișate."
+      : rows.length + " rânduri afișate. Totalul lipsește — repornește serverul local pentru noul API.";
   } catch (error) {
     status.textContent = error.message;
   }
