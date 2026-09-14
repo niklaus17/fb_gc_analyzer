@@ -7,15 +7,15 @@ const columns = [
   ["l1in", "L1 intrat", "number", "Rezultate"],
   ["l1sent", "L1 trimis", "number", "Rezultate"],
   ["graduates", "Absolvit", "number", "Rezultate"],
-  ["orders", "Com creată", "number", "Rezultate"],
-  ["paid", "Com plătită", "number", "Rezultate"],
-  ["revenue", "Venit", "money", "Rezultate"],
   ["sub_18", "sub_18", "number", "Vârstă · număr de leaduri"],
   ["18_21", "18_21", "number", "Vârstă · număr de leaduri"],
   ["22_24", "22_24", "number", "Vârstă · număr de leaduri"],
   ["25_34", "25_34", "number", "Vârstă · număr de leaduri"],
   ["35_44", "35_44", "number", "Vârstă · număr de leaduri"],
   ["45_plus", "45_plus", "number", "Vârstă · număr de leaduri"],
+  ["orders", "Com creată", "number", "Rezultate"],
+  ["paid", "Com plătită", "number", "Rezultate"],
+  ["revenue", "Venit", "money", "Rezultate"],
   ["cpl1", "Cost per L1 trimis", "money", "Indicatori calculați"],
   ["cpgrad", "Cost per Absolvit", "money", "Indicatori calculați"],
   ["gradRate", "Rata de absolvire", "percent", "Indicatori calculați"],
@@ -26,6 +26,23 @@ const columns = [
 const PREF_KEY = "campaignsheet.preferences.v2";
 const LEGACY_PREF_KEY = "campaignsheet.preferences";
 const ageKeys = ["sub_18", "18_21", "22_24", "25_34", "35_44", "45_plus"];
+const defaultVisibleColumns = [
+  "spend",
+  "leadsGc",
+  "cpl",
+  "l1in",
+  "l1sent",
+  "graduates",
+  ...ageKeys,
+  "orders",
+  "paid",
+  "cpl1",
+  "cpgrad",
+  "gradRate",
+  "cppaid",
+  "roas",
+  "paidRate",
+];
 const baseKeys = [
   "spend",
   "leadsGc",
@@ -54,22 +71,7 @@ const leaves = (node) =>
 const selected = new Set(campaigns.flatMap(leaves).map((x) => x.id));
 const expanded = new Set();
 const entityExpanded = new Set();
-const visible = new Set([
-  "spend",
-  "leadsGc",
-  "cpl",
-  "l1in",
-  "l1sent",
-  "graduates",
-  "orders",
-  "paid",
-  "cpl1",
-  "cpgrad",
-  "gradRate",
-  "cppaid",
-  "roas",
-  "paidRate",
-]);
+const visible = new Set(defaultVisibleColumns);
 let tagFilter = "all";
 const appSettings = {
   defaultCurrency: "USD",
@@ -819,9 +821,7 @@ $("reset").onclick = () => {
   clearSavedPreferences();
   campaigns.flatMap(leaves).forEach((n) => selected.add(n.id));
   visible.clear();
-  ["spend", "leadsGc", "cpl", "l1in", "l1sent", "graduates", "orders", "paid", "roas"].forEach((id) =>
-    visible.add(id),
-  );
+  defaultVisibleColumns.forEach((id) => visible.add(id));
   expanded.clear();
   entityExpanded.clear();
   inactiveTags.clear();
