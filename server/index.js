@@ -59,7 +59,13 @@ app.get('/api/report', async (request, response) => {
     SELECT lower(email) AS email,
       MAX(CASE WHEN event_type='l1in' THEN 1 ELSE 0 END)::int AS l1in,
       MAX(CASE WHEN event_type='l1sent' THEN 1 ELSE 0 END)::int AS l1sent,
-      MAX(CASE WHEN event_type='graduates' THEN 1 ELSE 0 END)::int AS graduates
+      MAX(CASE WHEN event_type='graduates' THEN 1 ELSE 0 END)::int AS graduates,
+      MAX(CASE WHEN event_type='sub_16' THEN 1 ELSE 0 END)::int AS sub_16,
+      MAX(CASE WHEN event_type='16_17' THEN 1 ELSE 0 END)::int AS age_16_17,
+      MAX(CASE WHEN event_type='18_24' THEN 1 ELSE 0 END)::int AS age_18_24,
+      MAX(CASE WHEN event_type='25_34' THEN 1 ELSE 0 END)::int AS age_25_34,
+      MAX(CASE WHEN event_type='35_44' THEN 1 ELSE 0 END)::int AS age_35_44,
+      MAX(CASE WHEN event_type='45_plus' THEN 1 ELSE 0 END)::int AS age_45_plus
     FROM gc_events GROUP BY lower(email)
   )
   SELECT COALESCE(utm_campaign,'') AS campaign_name,COALESCE(utm_content,'') AS adset_name,COALESCE(utm_term,'') AS ad_name,
@@ -69,7 +75,13 @@ app.get('/api/report', async (request, response) => {
     COALESCE(SUM(COALESCE(event_stats.graduates,0)),0)::int AS graduates,
     COALESCE(SUM(COALESCE(order_stats.orders,0)),0)::int AS orders,
     COUNT(DISTINCT CASE WHEN COALESCE(order_stats.paid,0)>0 THEN lead_base.email END)::int AS paid,
-    COALESCE(SUM(COALESCE(order_stats.revenue,0)),0)::float AS revenue
+    COALESCE(SUM(COALESCE(order_stats.revenue,0)),0)::float AS revenue,
+    COALESCE(SUM(COALESCE(event_stats.sub_16,0)),0)::int AS sub_16,
+    COALESCE(SUM(COALESCE(event_stats.age_16_17,0)),0)::int AS age_16_17,
+    COALESCE(SUM(COALESCE(event_stats.age_18_24,0)),0)::int AS age_18_24,
+    COALESCE(SUM(COALESCE(event_stats.age_25_34,0)),0)::int AS age_25_34,
+    COALESCE(SUM(COALESCE(event_stats.age_35_44,0)),0)::int AS age_35_44,
+    COALESCE(SUM(COALESCE(event_stats.age_45_plus,0)),0)::int AS age_45_plus
   FROM lead_base
   LEFT JOIN order_stats ON order_stats.email=lead_base.email
   LEFT JOIN event_stats ON event_stats.email=lead_base.email
@@ -121,8 +133,12 @@ app.get('/api/report', async (request, response) => {
       orders: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.orders || 0),
       paid: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.paid || 0),
       revenue: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.revenue || 0),
-      sub_16: row.sub_16, '16_17': 0, '18_24': row['18_24'], '25_34': row['25_34'],
-      '35_44': row['35_44'], '45_plus': row['45_plus'],
+      sub_16: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.sub_16 || 0),
+      '16_17': Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.age_16_17 || 0),
+      '18_24': Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.age_18_24 || 0),
+      '25_34': Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.age_25_34 || 0),
+      '35_44': Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.age_35_44 || 0),
+      '45_plus': Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.age_45_plus || 0),
     });
   }
   const campaigns = [...campaignMap.values()].map(({ adsets, ...campaign }) => ({

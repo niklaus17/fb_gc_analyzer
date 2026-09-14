@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS gc_orders (
 
 CREATE TABLE IF NOT EXISTS gc_events (
   email text NOT NULL,
-  event_type text NOT NULL CHECK (event_type IN ('l1in','l1sent','graduates')),
+  event_type text NOT NULL CHECK (event_type IN ('l1in','l1sent','graduates','sub_16','16_17','18_24','25_34','35_44','45_plus')),
   imported_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (email, event_type)
 );
@@ -136,6 +136,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS one_running_meta_sync ON sync_runs (source) WH
 
 -- Existing local databases created before the `unknown` Meta bucket was observed.
 ALTER TABLE meta_ad_age_daily DROP CONSTRAINT IF EXISTS meta_ad_age_daily_age_bucket_check;
+ALTER TABLE gc_events DROP CONSTRAINT IF EXISTS gc_events_event_type_check;
+ALTER TABLE gc_events ADD CONSTRAINT gc_events_event_type_check CHECK (event_type IN ('l1in','l1sent','graduates','sub_16','16_17','18_24','25_34','35_44','45_plus'));
 CREATE INDEX IF NOT EXISTS insights_date_idx ON meta_ad_insights_daily (insight_date);
 CREATE INDEX IF NOT EXISTS age_date_idx ON meta_ad_age_daily (insight_date);
 CREATE INDEX IF NOT EXISTS campaigns_account_idx ON campaigns (account_id);

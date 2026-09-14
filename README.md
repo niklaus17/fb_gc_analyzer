@@ -5,7 +5,7 @@ Aplicația este gândită să lucreze local cu date reale importate în PostgreS
 ## Cum pornești local
 
 1. Completează `.env` după modelul din `.env.example`.
-2. Rulează migrațiile dacă este nevoie: `npm run migrate`.
+2. Rulează migrațiile dacă este nevoie: `npm run db:migrate`.
 3. Pornește serverul: `npm start`.
 4. Deschide `http://localhost:3000`.
 
@@ -16,11 +16,12 @@ Dashboardul citește datele din endpointul local `/api/report`. Dacă nu există
 Pagina **Date** conține:
 
 - import manual Facebook Ads pentru perioada selectată;
-- upload CSV GetCourse pentru leaduri, comenzi și evenimentele L1/absolvire.
+- import GetCourse pentru CSV-uri complete: leaduri/înscrieri gratuite sau comenzi create/plătite;
+- import GetCourse pentru liste simple de emailuri: L1 intrat, L1 trimis, Absolvit și grupele de vârstă `sub_16`, `16_17`, `18_24`, `25_34`, `35_44`, `45_plus`.
 
 Importul Facebook salvează totalurile zilnice în PostgreSQL și folosește conversiile din fereastra `7-day click`. Reimportarea aceleiași perioade actualizează rândurile existente, fără dublare.
 
-GetCourse este importat din CSV-uri separate. Leadurile GC sunt baza principală pentru calcule; `Leads FB` rămâne o coloană opțională pentru comparație.
+Leadurile GC sunt baza principală pentru calcule; `Leads FB` rămâne o coloană opțională pentru comparație. Listele de emailuri din GetCourse se atașează la leadurile GC după email, iar grupele de vârstă din dashboard se calculează din aceste liste.
 
 ## Filtre și stare locală
 

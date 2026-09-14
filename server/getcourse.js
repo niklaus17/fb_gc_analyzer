@@ -1,6 +1,6 @@
 import { withTransaction } from './db.js';
 
-const EVENT_TYPES = new Set(['l1in', 'l1sent', 'graduates']);
+const EVENT_TYPES = new Set(['l1in', 'l1sent', 'graduates', 'sub_16', '16_17', '18_24', '25_34', '35_44', '45_plus']);
 
 function normalizeKey(value = '') { return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\uFEFF/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''); }
 function parseCsv(text) {

@@ -712,30 +712,34 @@ $("picker-to").addEventListener("change", (e) => {
 
 $("nav-dashboard").onclick = () => showPage("dashboard");
 $("nav-data").onclick = () => showPage("data");
-document.querySelectorAll("[data-gc-upload]").forEach((input) =>
-  input.addEventListener("change", async () => {
-    const file = input.files?.[0];
-    if (!file) return;
-    const status = $("gc-import-status");
-    status.textContent = "Import " + file.name + "...";
-    try {
-      const response = await fetch("/api/gc/import/" + input.dataset.gcUpload, {
-        method: "POST",
-        headers: { "Content-Type": "text/csv" },
-        body: await file.text(),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Importul a eșuat.");
-      status.textContent =
-        "Importat " + result.imported + " rânduri din " + file.name + ".";
-      await loadReport();
-      render();
-    } catch (error) {
-      status.textContent = error.message;
-    } finally {
-      input.value = "";
-    }
-  }),
+async function importGetCourseFile(input, kind) {
+  const file = input.files?.[0];
+  if (!file || !kind) return;
+  const status = $("gc-import-status");
+  status.textContent = "Import " + file.name + "...";
+  try {
+    const response = await fetch("/api/gc/import/" + kind, {
+      method: "POST",
+      headers: { "Content-Type": "text/csv" },
+      body: await file.text(),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Importul a eșuat.");
+    status.textContent =
+      "Importat " + result.imported + " rânduri din " + file.name + ".";
+    await loadReport();
+    render();
+  } catch (error) {
+    status.textContent = error.message;
+  } finally {
+    input.value = "";
+  }
+}
+$("gc-record-file").addEventListener("change", (event) =>
+  importGetCourseFile(event.target, $("gc-record-kind").value),
+);
+$("gc-list-file").addEventListener("change", (event) =>
+  importGetCourseFile(event.target, $("gc-list-kind").value),
 );
 $("sync-meta").addEventListener("click", async () => {
   const button = $("sync-meta"),

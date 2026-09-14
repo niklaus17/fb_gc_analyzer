@@ -80,14 +80,32 @@
         </section>
         <section class="sheet import-sheet">
             <div class="sheet-top"><div class="sheet-title"><span class="sheet-icon">⇧</span><strong>GetCourse CSV</strong></div></div>
-            <div class="upload-list">
-                <label class="upload-card"><span><strong>Leaduri GC</strong><small>CSV curs gratuit, cu UTM-uri.</small></span><input type="file" data-gc-upload="leads" accept=".csv,text/csv"></label>
-                <label class="upload-card"><span><strong>Comenzi GC</strong><small>Comenzi create și plătite; plătit = clienți unici.</small></span><input type="file" data-gc-upload="orders" accept=".csv,text/csv"></label>
-                <label class="upload-card"><span><strong>L1 intrat</strong><small>CSV/listă emailuri.</small></span><input type="file" data-gc-upload="l1in" accept=".csv,text/csv"></label>
-                <label class="upload-card"><span><strong>L1 trimis</strong><small>CSV/listă emailuri.</small></span><input type="file" data-gc-upload="l1sent" accept=".csv,text/csv"></label>
-                <label class="upload-card"><span><strong>Absolvit</strong><small>CSV/listă emailuri.</small></span><input type="file" data-gc-upload="graduates" accept=".csv,text/csv"></label>
+            <div class="gc-import-panel">
+                <div class="gc-import-row">
+                    <div><strong>CSV cu date complete</strong><small>Folosește pentru leaduri cu UTM-uri sau comenzi create/plătite.</small></div>
+                    <label><span class="sr-only">Tip CSV GetCourse</span><select id="gc-record-kind">
+                        <option value="leads">Leaduri / înscrieri gratuite</option>
+                        <option value="orders">Comenzi create / plătite</option>
+                    </select></label>
+                    <label class="file-button">Încarcă CSV<input type="file" id="gc-record-file" accept=".csv,text/csv"></label>
+                </div>
+                <div class="gc-import-row">
+                    <div><strong>Listă de emailuri</strong><small>Un email pe rând sau CSV cu prima coloană/email.</small></div>
+                    <label><span class="sr-only">Tip listă GetCourse</span><select id="gc-list-kind">
+                        <option value="l1in">L1 intrat</option>
+                        <option value="l1sent">L1 trimis</option>
+                        <option value="graduates">Absolvit</option>
+                        <option value="sub_16">Vârstă: sub_16</option>
+                        <option value="16_17">Vârstă: 16_17</option>
+                        <option value="18_24">Vârstă: 18_24</option>
+                        <option value="25_34">Vârstă: 25_34</option>
+                        <option value="35_44">Vârstă: 35_44</option>
+                        <option value="45_plus">Vârstă: 45_plus</option>
+                    </select></label>
+                    <label class="file-button">Încarcă lista<input type="file" id="gc-list-file" accept=".csv,.txt,text/csv,text/plain"></label>
+                </div>
             </div>
-            <div class="import-status" id="gc-import-status" role="status">Alege un fișier CSV pentru import.</div>
+            <div class="import-status" id="gc-import-status" role="status">Alege tipul datelor și încarcă fișierul GetCourse.</div>
         </section>
     </main>
 
