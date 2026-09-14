@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { getConfig } from './config.js';
 import { pool } from './db.js';
 import { runManualSync } from './meta.js';
-import { importGcCsv } from './getcourse.js';
+import { importGcCsv, previewGcCsv } from './getcourse.js';
 
 const app = express();
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -149,11 +149,43 @@ app.get('/api/report', async (request, response) => {
   response.json({ source: 'meta', from, to, portfolios, accounts, campaigns });
 });
 
+
+app.post('/api/gc/preview/:kind', async (request, response) => {
+  try {
+    const text = typeof request.body === 'string' ? request.body : '';
+    if (!text.trim()) return response.status(400).json({ error: 'CSV-ul este gol.' });
+    response.json({ ok: true, kind: request.params.kind, preview: await previewGcCsv(request.params.kind, text) });
+  } catch (error) { response.status(400).json({ error: error.message }); }
+});
+
 app.post('/api/gc/import/:kind', async (request, response) => {
   try {
     const text = typeof request.body === 'string' ? request.body : '';
     if (!text.trim()) return response.status(400).json({ error: 'CSV-ul este gol.' });
     response.json({ ok: true, kind: request.params.kind, ...await importGcCsv(request.params.kind, text) });
+  } catch (error) { response.status(400).json({ error: error.message }); }
+});
+
+
+app.get('/api/gc/data', async (request, response) => {
+  const type = request.query.type || 'paid_orders';
+  const search = String(request.query.search || '').trim().toLowerCase();
+  const limit = Math.min(Number(request.query.limit || 100), 500);
+  const like = '%' + search + '%';
+  try {
+    let result;
+    if (type === 'leads') {
+      result = await pool.query(`SELECT email,gc_order_number AS number,COALESCE(lead_date::text,created_at::date::text) AS date,product_name,utm_campaign,utm_content,utm_term
+        FROM gc_leads WHERE $1='' OR lower(email) LIKE $2 ORDER BY COALESCE(lead_date,created_at::date) DESC NULLS LAST LIMIT $3`, [search, like, limit]);
+    } else if (type === 'orders' || type === 'paid_orders') {
+      const paidOnly = type === 'paid_orders';
+      result = await pool.query(`SELECT email,order_number AS number,status,positions,cost_amount::float AS cost,paid_amount::float AS paid,currency,created_at::text AS date
+        FROM gc_orders WHERE ($1='' OR lower(email) LIKE $2) AND ($4=false OR paid_amount>0 OR lower(status) LIKE '%finalizat%') ORDER BY created_at DESC NULLS LAST LIMIT $3`, [search, like, limit, paidOnly]);
+    } else {
+      result = await pool.query(`SELECT email,event_type AS type,imported_at::text AS date FROM gc_events
+        WHERE event_type=$1 AND ($2='' OR lower(email) LIKE $3) ORDER BY imported_at DESC LIMIT $4`, [type, search, like, limit]);
+    }
+    response.json({ ok: true, type, rows: result.rows });
   } catch (error) { response.status(400).json({ error: error.message }); }
 });
 

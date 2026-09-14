@@ -1,4 +1,4 @@
-import { withTransaction } from './db.js';
+import { pool, withTransaction } from './db.js';
 
 const EVENT_TYPES = new Set(['l1in', 'l1sent', 'graduates', 'sub_18', '18_21', '22_24', '25_34', '35_44', '45_plus']);
 
@@ -39,18 +39,73 @@ function parseMoney(value) {
   return { amount: Number.isFinite(amount) ? amount : 0, currency };
 }
 function cleanEmail(value) { return String(value || '').trim().toLowerCase(); }
+function isCancelled(record) { return /anulat|cancel/i.test(pick(record, ['status','stare'])); }
+function recordsForKind(kind, text) {
+  const rows = parseCsv(text);
+  if (!rows.length) return [];
+  if (kind === 'leads') return asRecords(rows, ['email','gc_order_number','created_at','product_name','utm_source','utm_medium','utm_campaign','utm_content','utm_term','lead_date','status']);
+  if (kind === 'orders') return asRecords(rows, ['email','cost_money','number','status','positions','payed_money','created_at']);
+  if (EVENT_TYPES.has(kind)) return asRecords(rows, ['email']);
+  throw new Error('Tip import GetCourse necunoscut.');
+}
+function keyForRecord(kind, record) {
+  const email = cleanEmail(pick(record, ['email','user_email','user_email_']));
+  if (kind === 'leads') return pick(record, ['gc_order_number','number','order_number','id']) || (email + ':' + pick(record, ['created_at','lead_date']));
+  if (kind === 'orders') return pick(record, ['number','order_number','gc_order_number']);
+  return email ? email + ':' + kind : '';
+}
+function tableForKind(kind) {
+  if (kind === 'leads') return { table: 'gc_leads', column: 'gc_order_number' };
+  if (kind === 'orders') return { table: 'gc_orders', column: 'order_number' };
+  if (EVENT_TYPES.has(kind)) return { table: 'gc_events', column: 'email', eventType: kind };
+  throw new Error('Tip import GetCourse necunoscut.');
+}
+
+export async function previewGcCsv(kind, text) {
+  const records = recordsForKind(kind, text);
+  const table = tableForKind(kind);
+  const seen = new Set();
+  const keys = [];
+  const stats = { total: records.length, valid: 0, invalid: 0, cancelled: 0, duplicatesInFile: 0, existing: 0, new: 0, paidOrders: 0, paidCustomers: 0, revenue: 0, sample: [] };
+  const paidEmails = new Set();
+  for (const record of records) {
+    const email = cleanEmail(pick(record, ['email','user_email','user_email_']));
+    const key = keyForRecord(kind, record);
+    if (!email || !key) { stats.invalid++; continue; }
+    if (kind === 'leads' && isCancelled(record)) { stats.cancelled++; continue; }
+    if (seen.has(key)) { stats.duplicatesInFile++; continue; }
+    seen.add(key); keys.push(key); stats.valid++;
+    if (stats.sample.length < 5) stats.sample.push({ email, key, status: pick(record, ['status']), date: pick(record, ['created_at','lead_date']) });
+    if (kind === 'orders') {
+      const paid = parseMoney(pick(record, ['payed_money','paid_money','paid','payed']));
+      const status = pick(record, ['status']);
+      if (paid.amount > 0 || /finalizat/i.test(status)) { stats.paidOrders++; paidEmails.add(email); stats.revenue += paid.amount; }
+    }
+  }
+  if (keys.length) {
+    let result;
+    if (table.eventType) result = await pool.query('SELECT email AS key FROM gc_events WHERE event_type=$1 AND email=ANY($2::text[])', [table.eventType, keys.map((key) => key.split(':')[0])]);
+    else result = await pool.query(`SELECT ${table.column} AS key FROM ${table.table} WHERE ${table.column}=ANY($1::text[])`, [keys]);
+    stats.existing = new Set(result.rows.map((row) => row.key)).size;
+  }
+  stats.new = stats.valid - stats.existing;
+  stats.paidCustomers = paidEmails.size;
+  stats.revenue = Math.round(stats.revenue * 100) / 100;
+  return stats;
+}
 export async function importGcCsv(kind, text) {
-  const rows = parseCsv(text); if (!rows.length) return { imported: 0 };
-  if (kind === 'leads') return importLeads(asRecords(rows, ['email','gc_order_number','created_at','product_name','utm_source','utm_medium','utm_campaign','utm_content','utm_term','lead_date']));
-  if (kind === 'orders') return importOrders(asRecords(rows, ['email','cost_money','number','status','positions','payed_money','created_at']));
-  if (EVENT_TYPES.has(kind)) return importEvents(kind, asRecords(rows, ['email']));
+  const records = recordsForKind(kind, text);
+  if (!records.length) return { imported: 0 };
+  if (kind === 'leads') return importLeads(records);
+  if (kind === 'orders') return importOrders(records);
+  if (EVENT_TYPES.has(kind)) return importEvents(kind, records);
   throw new Error('Tip import GetCourse necunoscut.');
 }
 async function importLeads(records) {
   let imported = 0; await withTransaction(async (client) => {
     for (const record of records) {
       const email = cleanEmail(pick(record, ['email','user_email','user_email_'])); const number = pick(record, ['gc_order_number','number','order_number','id']) || (email + ':' + pick(record, ['created_at','lead_date']));
-      if (!email || !number) continue;
+      if (!email || !number || isCancelled(record)) continue;
       await client.query('INSERT INTO gc_leads(email,gc_order_number,created_at,lead_date,product_name,utm_source,utm_medium,utm_campaign,utm_content,utm_term,imported_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now()) ON CONFLICT(gc_order_number) DO UPDATE SET email=EXCLUDED.email,created_at=EXCLUDED.created_at,lead_date=EXCLUDED.lead_date,product_name=EXCLUDED.product_name,utm_source=EXCLUDED.utm_source,utm_medium=EXCLUDED.utm_medium,utm_campaign=EXCLUDED.utm_campaign,utm_content=EXCLUDED.utm_content,utm_term=EXCLUDED.utm_term,imported_at=now()', [email, number, parseDate(pick(record, ['created_at','created','data_crearii'])), parseDateOnly(pick(record, ['lead_date','date','data_formatata'])), pick(record, ['product_name','product','positions','comanda_detalii']), pick(record, ['utm_source','source']), pick(record, ['utm_medium','medium']), pick(record, ['utm_campaign','campaign']), pick(record, ['utm_content','content']), pick(record, ['utm_term','term'])]);
       imported++;
     }

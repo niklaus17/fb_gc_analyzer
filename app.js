@@ -714,35 +714,93 @@ $("picker-to").addEventListener("change", (e) => {
 
 $("nav-dashboard").onclick = () => showPage("dashboard");
 $("nav-data").onclick = () => showPage("data");
-async function importGetCourseFile(input, kind) {
+let pendingGcImport = null;
+async function previewGetCourseFile(input, kind) {
   const file = input.files?.[0];
   if (!file || !kind) return;
   const status = $("gc-import-status");
-  status.textContent = "Import " + file.name + "...";
+  const preview = $("gc-import-preview");
+  status.textContent = "Analizez " + file.name + "...";
+  preview.classList.add("hidden");
   try {
-    const response = await fetch("/api/gc/import/" + kind, {
+    const text = await file.text();
+    const response = await fetch("/api/gc/preview/" + kind, {
       method: "POST",
       headers: { "Content-Type": "text/csv" },
-      body: await file.text(),
+      body: text,
     });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "Importul a eșuat.");
-    status.textContent =
-      "Importat " + result.imported + " rânduri din " + file.name + ".";
-    await loadReport();
-    render();
+    if (!response.ok) throw new Error(result.error || "Preview-ul a eșuat.");
+    pendingGcImport = { kind, text, fileName: file.name };
+    const p = result.preview;
+    preview.innerHTML = `<strong>Preview import: ${file.name}</strong><div class="preview-grid"><span>Total: <b>${p.total}</b></span><span>Valide: <b>${p.valid}</b></span><span>Noi: <b>${p.new}</b></span><span>Actualizări: <b>${p.existing}</b></span><span>Duplicate în fișier: <b>${p.duplicatesInFile}</b></span><span>Ignorate: <b>${p.invalid + p.cancelled}</b></span>${kind === "orders" ? `<span>Comenzi plătite: <b>${p.paidOrders}</b></span><span>Clienți plătiți: <b>${p.paidCustomers}</b></span><span>Venit: <b>${decimal.format(p.revenue)}</b></span>` : ""}</div><div class="preview-actions"><button id="gc-confirm-import" class="primary" type="button">Confirmă importul</button><button id="gc-cancel-import" type="button">Anulează</button></div>`;
+    preview.classList.remove("hidden");
+    status.textContent = "Verifică preview-ul și confirmă importul.";
   } catch (error) {
     status.textContent = error.message;
   } finally {
     input.value = "";
   }
 }
+async function confirmGetCourseImport() {
+  if (!pendingGcImport) return;
+  const status = $("gc-import-status");
+  status.textContent = "Import " + pendingGcImport.fileName + "...";
+  const response = await fetch("/api/gc/import/" + pendingGcImport.kind, {
+    method: "POST",
+    headers: { "Content-Type": "text/csv" },
+    body: pendingGcImport.text,
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Importul a eșuat.");
+  status.textContent = "Importat " + result.imported + " rânduri din " + pendingGcImport.fileName + ".";
+  pendingGcImport = null;
+  $("gc-import-preview").classList.add("hidden");
+  await loadReport();
+  render();
+  await loadGcData();
+}
 $("gc-record-file").addEventListener("change", (event) =>
-  importGetCourseFile(event.target, $("gc-record-kind").value),
+  previewGetCourseFile(event.target, $("gc-record-kind").value),
 );
 $("gc-list-file").addEventListener("change", (event) =>
-  importGetCourseFile(event.target, $("gc-list-kind").value),
+  previewGetCourseFile(event.target, $("gc-list-kind").value),
 );
+$("gc-import-preview").addEventListener("click", async (event) => {
+  if (event.target.id === "gc-cancel-import") {
+    pendingGcImport = null;
+    $("gc-import-preview").classList.add("hidden");
+    $("gc-import-status").textContent = "Import anulat.";
+  }
+  if (event.target.id === "gc-confirm-import") {
+    try { await confirmGetCourseImport(); }
+    catch (error) { $("gc-import-status").textContent = error.message; }
+  }
+});
+async function loadGcData() {
+  const type = $("gc-data-type").value;
+  const search = $("gc-data-search").value.trim();
+  const status = $("gc-data-status");
+  status.textContent = "Se încarcă datele...";
+  try {
+    const params = new URLSearchParams({ type, search });
+    const response = await fetch("/api/gc/data?" + params.toString());
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Nu pot încărca datele.");
+    const rows = result.rows || [];
+    const keys = rows.length ? Object.keys(rows[0]) : ["email", "date"];
+    $("gc-data-head").innerHTML = `<tr>${keys.map((key) => `<th>${key}</th>`).join("")}</tr>`;
+    $("gc-data-body").innerHTML = rows.length
+      ? rows.map((row) => `<tr>${keys.map((key) => `<td>${row[key] ?? ""}</td>`).join("")}</tr>`).join("")
+      : `<tr><td class="empty" colspan="${keys.length}">Nu există date pentru filtrul ales.</td></tr>`;
+    status.textContent = rows.length + " rânduri afișate.";
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
+$("gc-data-refresh").onclick = () => loadGcData();
+$("gc-data-type").addEventListener("change", () => loadGcData());
+$("gc-data-search").addEventListener("keydown", (event) => { if (event.key === "Enter") loadGcData(); });
 $("sync-meta").addEventListener("click", async () => {
   const button = $("sync-meta"),
     status = $("sync-status");

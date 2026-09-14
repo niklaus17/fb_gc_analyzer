@@ -105,7 +105,31 @@
                     <label class="file-button">Încarcă lista<input type="file" id="gc-list-file" accept=".csv,.txt,text/csv,text/plain"></label>
                 </div>
             </div>
+            <div class="import-preview hidden" id="gc-import-preview"></div>
             <div class="import-status" id="gc-import-status" role="status">Alege tipul datelor și încarcă fișierul GetCourse.</div>
+        </section>
+        <section class="sheet import-sheet">
+            <div class="sheet-top"><div class="sheet-title"><span class="sheet-icon">▦</span><strong>Date importate</strong></div></div>
+            <div class="gc-data-tools">
+                <select id="gc-data-type">
+                    <option value="paid_orders">Comenzi plătite</option>
+                    <option value="orders">Comenzi create</option>
+                    <option value="leads">Leaduri GC</option>
+                    <option value="l1in">L1 intrat</option>
+                    <option value="l1sent">L1 trimis</option>
+                    <option value="graduates">Absolvit</option>
+                    <option value="sub_18">Vârstă: sub_18</option>
+                    <option value="18_21">Vârstă: 18_21</option>
+                    <option value="22_24">Vârstă: 22_24</option>
+                    <option value="25_34">Vârstă: 25_34</option>
+                    <option value="35_44">Vârstă: 35_44</option>
+                    <option value="45_plus">Vârstă: 45_plus</option>
+                </select>
+                <input id="gc-data-search" type="search" placeholder="Caută email">
+                <button id="gc-data-refresh" type="button">Afișează</button>
+            </div>
+            <div class="table-scroll gc-data-scroll"><table><thead id="gc-data-head"></thead><tbody id="gc-data-body"></tbody></table></div>
+            <div class="import-status" id="gc-data-status" role="status">Alege ce date vrei să verifici.</div>
         </section>
     </main>
 

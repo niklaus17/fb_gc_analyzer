@@ -23,6 +23,10 @@ Importul Facebook salvează totalurile zilnice în PostgreSQL și folosește con
 
 Leadurile GC sunt baza principală pentru calcule; `Leads FB` rămâne o coloană opțională pentru comparație. Listele de emailuri din GetCourse se atașează la leadurile GC după email, iar grupele de vârstă din dashboard se calculează din aceste liste.
 
+Importurile GetCourse au preview înainte de confirmare. Preview-ul arată rândurile valide, rândurile noi, actualizările, duplicatele din fișier și rândurile ignorate. Pentru comenzi afișează și comenzile plătite, clienții unici plătiți și venitul detectat. Leadurile cu status anulat/cancelat sunt ignorate la import.
+
+Secțiunea **Date importate** permite verificarea rapidă a datelor salvate: comenzi plătite, comenzi create, leaduri GC și listele de emailuri pentru L1, Absolvit și vârstă. Poți căuta după email.
+
 ## Filtre și stare locală
 
 Filtrele se salvează în `localStorage` în browser:
