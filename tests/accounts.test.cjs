@@ -101,5 +101,17 @@ run('setAccountSelection([])');
 assert.equal(run('campaigns.flatMap(c=>filteredLeaves(c)).length'), 0);
 assert.equal(element('currency').textContent, '—');
 assert.deepEqual(stored.selectedAccounts, []);
+
+run(`
+savedPreferences = { dateFrom: '2026-01-01', dateTo: '2026-01-31' };
+dateFrom = '2026-09-01';
+dateTo = '2026-09-10';
+pendingFrom = dateFrom;
+pendingTo = dateTo;
+restorePreferencesForCurrentData();
+`);
+assert.equal(run('dateFrom'), '2026-09-01');
+assert.equal(run('dateTo'), '2026-09-10');
+
 assert.equal(run('new Set(allNodes.map(n=>n.id)).size'), run('allNodes.length'));
-console.log('PASS: empty startup, account isolation, additive totals, currency guard, retained creative choices, tag filters, empty selection and persistence.');
+console.log('PASS: empty startup, account isolation, additive totals, currency guard, retained creative choices, stable date filters, tag filters, empty selection and persistence.');

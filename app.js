@@ -95,8 +95,8 @@ try {
 function validColumnIds(ids) {
   return Array.isArray(ids) ? ids.filter((id) => columns.some((column) => column[0] === id)) : [];
 }
-function restorePreferencesForCurrentData({ initial = false } = {}) {
-  if (savedPreferences.dateFrom && savedPreferences.dateTo) {
+function restorePreferencesForCurrentData({ initial = false, restoreDate = false } = {}) {
+  if (restoreDate && savedPreferences.dateFrom && savedPreferences.dateTo) {
     dateFrom = savedPreferences.dateFrom;
     dateTo = savedPreferences.dateTo;
     pendingFrom = dateFrom;
@@ -842,7 +842,7 @@ document.querySelectorAll("dialog").forEach((d) =>
     }
   }),
 );
-restorePreferencesForCurrentData({ initial: true });
+restorePreferencesForCurrentData({ initial: true, restoreDate: true });
 preferencesReady = true;
 renderDateButton();
 render();
