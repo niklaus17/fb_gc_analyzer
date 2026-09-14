@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { leadCount } from '../server/meta.js';
+import { parseMoney } from '../server/getcourse.js';
 
 test('leadCount ia doar Website leads din 7-day click attribution', () => {
   assert.equal(leadCount([
@@ -17,4 +18,16 @@ test('leadCount ia doar Website leads din 7-day click attribution', () => {
 test('Meta insights cere explicit atribuirea 7-day click', () => {
   const source = readFileSync(new URL('../server/meta.js', import.meta.url), 'utf8');
   assert.match(source, /action_attribution_windows:\s*\['7d_click'\]/);
+});
+
+
+test('GetCourse money parser păstrează separatorii de mii corect', () => {
+  assert.equal(parseMoney('1.150€').amount, 1150);
+  assert.equal(parseMoney('1,150€').amount, 1150);
+  assert.equal(parseMoney('1 150€').amount, 1150);
+  assert.equal(parseMoney('1.150,00€').amount, 1150);
+  assert.equal(parseMoney('1,150.00€').amount, 1150);
+  assert.equal(parseMoney('299€').amount, 299);
+  assert.equal(parseMoney('1.15€').amount, 1.15);
+  assert.equal(parseMoney('$1,150.00').currency, 'USD');
 });

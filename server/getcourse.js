@@ -33,9 +33,26 @@ function parseDate(value) {
   return null;
 }
 function parseDateOnly(value) { const date = parseDate(value); return date ? date.slice(0, 10) : null; }
-function parseMoney(value) {
-  if (!value) return { amount: 0, currency: 'EUR' }; const text = String(value).replace(/\s/g, '').replace(',', '.');
-  const amount = Number((text.match(/-?\d+(?:\.\d+)?/) || ['0'])[0]); const currency = text.includes('$') ? 'USD' : text.includes('€') ? 'EUR' : 'EUR';
+export function parseMoney(value) {
+  if (!value) return { amount: 0, currency: 'EUR' };
+  const raw = String(value);
+  const currency = raw.includes('$') ? 'USD' : raw.includes('€') ? 'EUR' : 'EUR';
+  let text = raw.replace(/[^0-9,.-]/g, '');
+  const negative = text.startsWith('-');
+  text = text.replace(/-/g, '');
+  const comma = text.lastIndexOf(',');
+  const dot = text.lastIndexOf('.');
+  const lastSeparator = Math.max(comma, dot);
+  let normalized;
+  if (lastSeparator >= 0) {
+    const decimals = text.length - lastSeparator - 1;
+    const integerPart = text.slice(0, lastSeparator).replace(/[,.]/g, '');
+    const fractionPart = text.slice(lastSeparator + 1).replace(/[,.]/g, '');
+    normalized = decimals === 3 && integerPart ? integerPart + fractionPart : integerPart + '.' + fractionPart;
+  } else {
+    normalized = text;
+  }
+  const amount = Number((negative ? '-' : '') + normalized);
   return { amount: Number.isFinite(amount) ? amount : 0, currency };
 }
 function cleanEmail(value) { return String(value || '').trim().toLowerCase(); }
