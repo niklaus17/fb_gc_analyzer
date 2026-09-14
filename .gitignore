@@ -4,3 +4,9 @@
 !.env.example
 node_modules/
 *.log
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.dump
+*.backup

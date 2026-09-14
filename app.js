@@ -38,175 +38,11 @@ const baseKeys = [
   "revenue",
   ...ageKeys,
 ];
-let portfolios = [
-  { id: "demo-webcase", name: "Webcase · portofoliu demo" },
-  { id: "demo-studio", name: "Design Studio · portofoliu demo" },
-];
-let accounts = [
-  {
-    id: "demo-account-01",
-    portfolioId: "demo-webcase",
-    name: "Webcase Community · Moldova",
-    currency: "USD",
-  },
-  {
-    id: "demo-account-02",
-    portfolioId: "demo-webcase",
-    name: "Webcase Community · România",
-    currency: "USD",
-  },
-  {
-    id: "demo-account-03",
-    portfolioId: "demo-studio",
-    name: "Design Studio · Europa",
-    currency: "EUR",
-  },
-  {
-    id: "demo-account-04",
-    portfolioId: "demo-studio",
-    name: "Design Studio · Internațional",
-    currency: "USD",
-  },
-];
-const selectedAccounts = new Set(["demo-account-01", "demo-account-02"]);
+let portfolios = [];
+let accounts = [];
+const selectedAccounts = new Set();
 const accountById = (id) => accounts.find((a) => a.id === id);
-let campaigns = [
-  {
-    id: "c1",
-    name: "AN_Leads_RO/MD_Orase_25_Iun",
-    children: [
-      {
-        id: "a1",
-        name: "BROAD_MD_23_40_25_IUNIE",
-        children: [
-          "Ad1_import",
-          "Ad4_video_sergiu+prezentare",
-          "AI_in_actiune",
-          "curs_gratuit_7_zile",
-          "curs_gratuit_blue",
-        ].map((name, i) => creative("r" + i, name, i)),
-      },
-      {
-        id: "a2",
-        name: "BROAD_RO_23_40_25_IUNIE",
-        children: [
-          "Ad1_import",
-          "Ad3_import_v2",
-          "curs_gratuit_circle",
-          "Incepe_acum_briliant",
-        ].map((name, i) => creative("s" + i, name, i + 5)),
-      },
-      {
-        id: "a3",
-        name: "INTEREST_DESIGN_MD_25_IUNIE",
-        children: ["design_cu_mentor", "Invata_Web_design"].map((name, i) =>
-          creative("t" + i, name, i + 9),
-        ),
-      },
-    ],
-  },
-  {
-    id: "c2",
-    name: "AN_Leads_RO_Design_12_Iun",
-    children: [
-      {
-        id: "a4",
-        name: "BROAD_RO_18_34_DESIGN",
-        children: [
-          "Video_rezultate",
-          "Un_skill_nou",
-          "inainte_sa_platesti",
-        ].map((name, i) => creative("u" + i, name, i + 11)),
-      },
-      {
-        id: "a5",
-        name: "RETARGETING_RO_30_ZILE",
-        children: ["Poveste_absolvent", "Ultimele_locuri"].map((name, i) =>
-          creative("v" + i, name, i + 14),
-        ),
-      },
-    ],
-  },
-  {
-    id: "c3",
-    name: "AN_Leads_MD_Retargeting_05_Iun",
-    children: [
-      {
-        id: "a6",
-        name: "WARM_MD_ENGAGEMENT",
-        children: ["Ad_testimonial", "curs_gratuit_pink"].map((name, i) =>
-          creative("w" + i, name, i + 16),
-        ),
-      },
-    ],
-  },
-];
-function creative(id, name, i) {
-  const leads = 48 + ((i * 23) % 137);
-  const l1in = Math.floor(leads * 0.78);
-  const l1sent = Math.floor(l1in * 0.83);
-  const graduates = Math.floor(l1sent * (0.49 + (i % 4) * 0.06));
-  const orders = Math.floor(graduates * 0.53);
-  const paid = Math.floor(orders * 0.68);
-  const ages = [0.03, 0.09, 0.32, 0.3, 0.18].map((v) => Math.floor(leads * v));
-  ages.push(leads - ages.reduce((a, b) => a + b, 0));
-  return {
-    id,
-    name,
-    spend: Math.round(leads * (2.4 + (i % 5) * 0.37) * 100) / 100,
-    leadsGc: leads,
-    leadsFb: Math.round(leads * 0.92),
-    l1in,
-    l1sent,
-    graduates,
-    orders,
-    paid,
-    revenue: paid * (89 + (i % 3) * 20),
-    ...Object.fromEntries(ageKeys.map((k, j) => [k, ages[j]])),
-  };
-}
-campaigns.push({
-  id: "c4",
-  name: "DS_Leads_Europa_01_Iun",
-  children: [
-    {
-      id: "a7",
-      name: "BROAD_EU_DESIGN",
-      children: [
-        creative("eu1", "Video_design_europa", 18),
-        creative("eu2", "Curs_design_europa", 19),
-      ],
-    },
-  ],
-});
-campaigns.push({
-  id: "c5",
-  name: "DS_Leads_International_01_Iun",
-  children: [
-    {
-      id: "a8",
-      name: "BROAD_INT_DESIGN",
-      children: [creative("int1", "Video_design_global", 20)],
-    },
-  ],
-});
-// Every level carries account ownership. Use account + entity IDs as stable keys.
-campaigns.forEach((campaign, i) => {
-  const accountId = [
-    "demo-account-01",
-    "demo-account-02",
-    "demo-account-02",
-    "demo-account-03",
-    "demo-account-04",
-  ][i];
-  function assign(node) {
-    node.accountId = accountId;
-    node.sourceId = node.id;
-    node.id = accountId + ":" + node.id;
-    if (node.children) node.children.forEach(assign);
-  }
-  assign(campaign);
-});
+let campaigns = [];
 const scopedCampaigns = () =>
   campaigns.filter((c) => selectedAccounts.has(c.accountId));
 let allNodes = campaigns.flatMap((c) => [
@@ -216,11 +52,7 @@ let allNodes = campaigns.flatMap((c) => [
 const leaves = (node) =>
   node.children ? node.children.flatMap(leaves) : [node];
 const selected = new Set(campaigns.flatMap(leaves).map((x) => x.id));
-const expanded = new Set(
-  allNodes
-    .filter((n) => ["c1", "c2", "c3", "a1"].includes(n.sourceId))
-    .map((n) => n.id),
-);
+const expanded = new Set();
 const entityExpanded = new Set();
 const visible = new Set([
   "spend",
@@ -240,12 +72,17 @@ const visible = new Set([
 ]);
 let tagFilter = "all";
 let currency = "USD";
-let dateFrom = "2026-06-01",
-  dateTo = "2026-06-30";
+const INITIAL_FROM = "2026-01-01";
+const initialToday = (() => {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+})();
+let dateFrom = INITIAL_FROM,
+  dateTo = initialToday;
 let pendingFrom = dateFrom,
   pendingTo = dateTo,
-  calendarMonth = "2026-06-01",
-  datePreset = "Custom",
+  calendarMonth = dateFrom,
+  datePreset = "All time",
   pickingRange = false;
 let entitySearch = "",
   entityAccountFilter = "all";
@@ -272,6 +109,11 @@ function restorePreferencesForCurrentData({ initial = false } = {}) {
       selectedAccounts.clear();
       valid.forEach((id) => selectedAccounts.add(id));
     }
+  } else if (!selectedAccounts.size && accounts.length) {
+    const defaultCurrency = accounts[0].currency;
+    accounts
+      .filter((account) => account.currency === defaultCurrency)
+      .forEach((account) => selectedAccounts.add(account.id));
   }
   const columnIds = validColumnIds(savedPreferences.visibleColumns);
   if (columnIds.length) {
@@ -288,8 +130,10 @@ function restorePreferencesForCurrentData({ initial = false } = {}) {
   if (savedSelected.length) {
     selected.clear();
     savedSelected.forEach((id) => selected.add(id));
-  } else if (!initial && savedPreferences.selectedEntities) {
+  } else if (!initial && Array.isArray(savedPreferences.selectedEntities)) {
     selected.clear();
+    campaigns.flatMap(leaves).forEach((node) => selected.add(node.id));
+  } else if (!Array.isArray(savedPreferences.selectedEntities) && !selected.size) {
     campaigns.flatMap(leaves).forEach((node) => selected.add(node.id));
   }
   const nodeIds = new Set(allNodes.map((node) => node.id));
@@ -333,33 +177,6 @@ function clearSavedPreferences() {
   savedPreferences = {};
   localStorage.removeItem(PREF_KEY);
   localStorage.removeItem(LEGACY_PREF_KEY);
-}
-// Deterministic daily observations; nested funnel events share their lead date.
-for (const [index, ad] of campaigns.flatMap(leaves).entries()) {
-  ad.daily = Array.from({ length: 30 }, (_, d) => ({
-    date: `2026-06-${String(d + 1).padStart(2, "0")}`,
-    ...Object.fromEntries(baseKeys.map((k) => [k, 0])),
-  }));
-  for (let i = 0; i < ad.leadsGc; i++) {
-    const day = ad.daily[(i * 7 + index * 3) % 30];
-    day.leads++;
-    for (const key of ["l1in", "l1sent", "graduates", "orders", "paid"])
-      if (i < ad[key]) day[key]++;
-    let end = 0;
-    for (const key of ageKeys) {
-      end += ad[key];
-      if (i < end) {
-        day[key]++;
-        break;
-      }
-    }
-  }
-  const cents = Math.round(ad.spend * 100);
-  ad.daily.forEach((day, d) => {
-    day.spend =
-      (Math.floor((cents * (d + 1)) / 30) - Math.floor((cents * d) / 30)) / 100;
-    day.revenue = day.paid * (ad.paid ? ad.revenue / ad.paid : 0);
-  });
 }
 function periodData(ad) {
   if (!ad.daily)
@@ -447,7 +264,7 @@ function datePresets() {
     ["This month", thisMonthStart, today],
     ["Last 30 days", shiftDays(today, -30), yesterday],
     ["Last month", lastMonthDate, monthEnd(lastMonthDate)],
-    ["All time", "2026-06-01", today],
+    ["All time", INITIAL_FROM, today],
   ];
 }
 function divide(a, b, m = 1) {
@@ -557,7 +374,7 @@ function render() {
   campaigns.forEach((c) => row(c, 0));
   $("table-body").innerHTML =
     html ||
-    `<tr><td class="empty" colspan="${visible.size + 1}">Nu există date pentru perioada și filtrele selectate. Date demo: 1–30 iunie 2026.</td></tr>`;
+    `<tr><td class="empty" colspan="${visible.size + 1}">Nu există date pentru perioada și filtrele selectate. Importă date din Facebook/GetCourse sau alege o perioadă cu date.</td></tr>`;
   $("table-foot").innerHTML =
     `<tr><td>Total selecție <span style="font-weight:400;color:#6e8476;margin-left:8px;font-size:11px">${rows.length} creative</span></td>${cellValues(total)}</tr>`;
   $("campaign-count").textContent = campaignCount + " campanii";
@@ -998,11 +815,11 @@ $("reset").onclick = () => {
   entityAccountFilter = "all";
   tagFilter = "all";
   $("tag-filter").value = "all";
-  dateFrom = "2026-06-01";
-  dateTo = "2026-06-30";
+  dateFrom = INITIAL_FROM;
+  dateTo = todayIso();
   pendingFrom = dateFrom;
   pendingTo = dateTo;
-  datePreset = "Custom";
+  datePreset = "All time";
   $("period-error").textContent = "";
   renderDateButton();
   renderColumns();
@@ -1036,10 +853,9 @@ async function loadReport() {
   const response = await fetch("/api/report?" + params.toString());
   if (!response.ok) return;
   const report = await response.json();
-  if (!report.accounts?.length) return;
-  portfolios = report.portfolios;
-  accounts = report.accounts;
-  campaigns = report.campaigns;
+  portfolios = report.portfolios || [];
+  accounts = report.accounts || [];
+  campaigns = report.campaigns || [];
   allNodes = campaigns.flatMap((c) => [
     c,
     ...c.children.flatMap((a) => [a, ...a.children]),

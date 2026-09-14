@@ -14,7 +14,7 @@
 <body>
     <header class="topbar"><a class="brand" href="./"><span class="brand-icon">▤</span> campaign<span
                 class="brand-light">sheet</span></a><span class="workspace">Spațiul meu <span>/</span> Analiză
-            campanii</span><nav class="topnav"><button id="nav-dashboard" class="active" type="button">Dashboard</button><button id="nav-data" type="button">Date</button></nav><span class="demo"><i></i> Date demonstrative</span><span class="avatar">N</span></header>
+            campanii</span><nav class="topnav"><button id="nav-dashboard" class="active" type="button">Dashboard</button><button id="nav-data" type="button">Date</button></nav><span class="data-status"><i></i> Date locale</span><span class="avatar">N</span></header>
     <main id="dashboard-page" class="app-page">
         <div class="page-heading">
             <div>
@@ -25,12 +25,11 @@
             <div class="report-controls">
                 <button id="accounts-button" class="account-picker" aria-haspopup="dialog"
                     aria-controls="accounts-dialog"><span class="account-icon">▣</span><span><small>CONTURI
-                            PUBLICITARE</small><strong id="accounts-summary">2 conturi selectate</strong><span
-                            id="accounts-context">Webcase · USD</span></span><span>⌄</span></button>
+                            PUBLICITARE</small><strong id="accounts-summary">0 conturi selectate</strong><span
+                            id="accounts-context">Importă date locale</span></span><span>⌄</span></button>
                 <div class="period"><button id="date-range-button" class="date-range-button" type="button"
                         aria-haspopup="dialog" aria-controls="date-dialog"><span
-                            id="date-preset-label">Custom</span><strong id="date-range-label">Jun 1 – 30,
-                            2026</strong><span>⌄</span></button><span id="period-error" role="alert"></span></div>
+                            id="date-preset-label">All time</span><strong id="date-range-label">Jan 1 – azi</strong><span>⌄</span></button><span id="period-error" role="alert"></span></div>
             </div>
         </div>
         <section class="metrics" id="metrics" aria-label="Rezumat selecție"></section>
@@ -69,8 +68,7 @@
                     Derulează orizontal pentru toate coloanele →</span>
             </div>
         </section>
-        <div class="bottom-note"><span>ⓘ Date fictive pentru explorarea designului. Nicio sursă de date
-                conectată.</span><button id="formulas-button">Cum se calculează indicatorii ↗</button></div>
+        <div class="bottom-note"><span>ⓘ Datele reale rămân în baza locală. Repository-ul public nu include importuri Facebook sau CSV-uri GetCourse.</span><button id="formulas-button">Cum se calculează indicatorii ↗</button></div>
     </main>
     <main id="data-page" class="app-page hidden">
         <div class="page-heading">

@@ -107,7 +107,7 @@ a {
     color: #b0bcb4
 }
 
-.demo {
+.data-status {
     margin-left: auto;
     font-size: 12px;
     background: #f2f6f0;
@@ -116,7 +116,7 @@ a {
     border-radius: 5px
 }
 
-.demo i,
+.data-status i,
 .live-dot {
     display: inline-block;
     width: 6px;
@@ -750,7 +750,7 @@ h2 {
         font-size: 18px
     }
 
-    .demo {
+    .data-status {
         font-size: 10px
     }
 
