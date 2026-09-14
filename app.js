@@ -23,6 +23,8 @@ const columns = [
   ["roas", "ROAS", "ratio", "Indicatori calculați"],
   ["paidRate", "Lead → Plătit %", "percent", "Indicatori calculați"],
 ];
+const PREF_KEY = "campaignsheet.preferences.v2";
+const LEGACY_PREF_KEY = "campaignsheet.preferences";
 const ageKeys = ["sub_16", "16_17", "18_24", "25_34", "35_44", "45_plus"];
 const baseKeys = [
   "spend",
@@ -248,37 +250,89 @@ let pendingFrom = dateFrom,
 let entitySearch = "",
   entityAccountFilter = "all";
 const inactiveTags = new Set();
+let savedPreferences = {};
+let preferencesReady = false;
 try {
-  const saved = JSON.parse(
-    localStorage.getItem("campaignsheet.preferences") || "{}",
-  );
-  if (Array.isArray(saved.selectedAccounts)) {
-    const valid = saved.selectedAccounts.filter((id) => accountById(id));
-    if (new Set(valid.map((id) => accountById(id).currency)).size <= 1) {
+  savedPreferences = JSON.parse(localStorage.getItem(PREF_KEY) || localStorage.getItem(LEGACY_PREF_KEY) || "{}");
+} catch { savedPreferences = {}; }
+function validColumnIds(ids) {
+  return Array.isArray(ids) ? ids.filter((id) => columns.some((column) => column[0] === id)) : [];
+}
+function restorePreferencesForCurrentData({ initial = false } = {}) {
+  if (savedPreferences.dateFrom && savedPreferences.dateTo) {
+    dateFrom = savedPreferences.dateFrom;
+    dateTo = savedPreferences.dateTo;
+    pendingFrom = dateFrom;
+    pendingTo = dateTo;
+    datePreset = savedPreferences.datePreset || "Custom";
+  }
+  if (Array.isArray(savedPreferences.selectedAccounts)) {
+    const valid = savedPreferences.selectedAccounts.filter((id) => accountById(id));
+    if (valid.length && new Set(valid.map((id) => accountById(id).currency)).size <= 1) {
       selectedAccounts.clear();
       valid.forEach((id) => selectedAccounts.add(id));
     }
   }
-  if (Array.isArray(saved.inactiveTags))
-    saved.inactiveTags
-      .map((id) => allNodes.find((n) => n.id === id || n.sourceId === id)?.id)
-      .filter(Boolean)
-      .forEach((id) => inactiveTags.add(id));
-} catch {}
-function savePreferences() {
-  try {
-    localStorage.setItem(
-      "campaignsheet.preferences",
-      JSON.stringify({
-        selectedAccounts: [...selectedAccounts],
-        inactiveTags: [...inactiveTags],
-      }),
-    );
-    $("storage-note").textContent = "";
-  } catch {
-    $("storage-note").textContent =
-      "Stocarea locală nu este disponibilă. Tagurile se păstrează doar până la reîncărcare.";
+  const columnIds = validColumnIds(savedPreferences.visibleColumns);
+  if (columnIds.length) {
+    visible.clear();
+    columnIds.forEach((id) => visible.add(id));
   }
+  if (["all", "exclude", "only"].includes(savedPreferences.tagFilter)) tagFilter = savedPreferences.tagFilter;
+  if (Array.isArray(savedPreferences.inactiveTags)) {
+    inactiveTags.clear();
+    savedPreferences.inactiveTags.map((id) => allNodes.find((n) => n.id === id || n.sourceId === id)?.id).filter(Boolean).forEach((id) => inactiveTags.add(id));
+  }
+  const leafIds = new Set(campaigns.flatMap(leaves).map((node) => node.id));
+  const savedSelected = Array.isArray(savedPreferences.selectedEntities) ? savedPreferences.selectedEntities.filter((id) => leafIds.has(id)) : [];
+  if (savedSelected.length) {
+    selected.clear();
+    savedSelected.forEach((id) => selected.add(id));
+  } else if (!initial && savedPreferences.selectedEntities) {
+    selected.clear();
+    campaigns.flatMap(leaves).forEach((node) => selected.add(node.id));
+  }
+  const nodeIds = new Set(allNodes.map((node) => node.id));
+  if (Array.isArray(savedPreferences.expandedRows)) {
+    expanded.clear();
+    savedPreferences.expandedRows.filter((id) => nodeIds.has(id)).forEach((id) => expanded.add(id));
+  }
+  if (Array.isArray(savedPreferences.entityExpanded)) {
+    entityExpanded.clear();
+    savedPreferences.entityExpanded.filter((id) => nodeIds.has(id)).forEach((id) => entityExpanded.add(id));
+  }
+  if (savedPreferences.activePage === "data") showPage("data", false);
+  else showPage("dashboard", false);
+  $("tag-filter").value = tagFilter;
+  renderDateButton();
+}
+function currentPreferences() {
+  return {
+    dateFrom, dateTo, datePreset,
+    selectedAccounts: [...selectedAccounts],
+    visibleColumns: [...visible],
+    selectedEntities: [...selected],
+    expandedRows: [...expanded],
+    entityExpanded: [...entityExpanded],
+    inactiveTags: [...inactiveTags],
+    tagFilter,
+    activePage: $("data-page")?.classList?.contains?.("hidden") ? "dashboard" : "data",
+  };
+}
+function savePreferences() {
+  if (!preferencesReady) return;
+  try {
+    savedPreferences = currentPreferences();
+    localStorage.setItem(PREF_KEY, JSON.stringify(savedPreferences));
+    if ($("storage-note")) $("storage-note").textContent = "";
+  } catch {
+    if ($("storage-note")) $("storage-note").textContent = "Stocarea locală nu este disponibilă. Filtrele se păstrează doar până la reîncărcare.";
+  }
+}
+function clearSavedPreferences() {
+  savedPreferences = {};
+  localStorage.removeItem(PREF_KEY);
+  localStorage.removeItem(LEGACY_PREF_KEY);
 }
 // Deterministic daily observations; nested funnel events share their lead date.
 for (const [index, ad] of campaigns.flatMap(leaves).entries()) {
@@ -619,6 +673,7 @@ async function applyDateRange() {
   $("date-dialog").close();
   await loadReport();
   render();
+  savePreferences();
 }
 function renderColumns() {
   let group = "";
@@ -639,12 +694,14 @@ document.addEventListener("click", (e) => {
     const id = toggle.dataset.toggle;
     expanded.has(id) ? expanded.delete(id) : expanded.add(id);
     render();
+    savePreferences();
   }
   const entityToggle = e.target.closest("[data-entity-toggle]");
   if (entityToggle && !entityToggle.disabled) {
     const id = entityToggle.dataset.entityToggle;
     entityExpanded.has(id) ? entityExpanded.delete(id) : entityExpanded.add(id);
     renderEntities();
+    savePreferences();
     return;
   }
   const panel = e.target.closest("[data-panel]");
@@ -664,16 +721,19 @@ $("entity-options").addEventListener("change", (e) => {
   renderEntities();
   $("entity-options").querySelector(`[data-entity="${id}"]`).focus();
   render();
+  savePreferences();
 });
 $("column-options").addEventListener("change", (e) => {
   const id = e.target.dataset.column;
   if (!id) return;
   e.target.checked ? visible.add(id) : visible.delete(id);
   render();
+  savePreferences();
 });
 $("tag-filter").addEventListener("change", (e) => {
   tagFilter = e.target.value;
   render();
+  savePreferences();
 });
 function renderAccountSummary() {
   const chosen = accounts.filter((a) => selectedAccounts.has(a.id));
@@ -696,6 +756,14 @@ function renderAccountSummary() {
     : "Selectează conturile pentru raport";
   $("account-selection-note").textContent =
     chosen.length + " conturi · selecția se aplică imediat";
+}
+function showPage(page, persist = true) {
+  document.querySelectorAll(".app-page").forEach((p) => p.classList?.add?.("hidden"));
+  const target = $(page === "data" ? "data-page" : "dashboard-page");
+  target?.classList?.remove?.("hidden");
+  $("nav-dashboard")?.classList?.toggle?.("active", page !== "data");
+  $("nav-data")?.classList?.toggle?.("active", page === "data");
+  if (persist) savePreferences();
 }
 function renderAccounts() {
   const chosen = accounts.filter((a) => selectedAccounts.has(a.id));
@@ -797,6 +865,7 @@ $("calendar-grid").addEventListener("click", (e) => {
   }
   datePreset = "Custom";
   renderDatePicker();
+  savePreferences();
 });
 $("picker-from").addEventListener("change", (e) => {
   pendingFrom = e.target.value;
@@ -804,30 +873,18 @@ $("picker-from").addEventListener("change", (e) => {
   pickingRange = false;
   calendarMonth = monthStart(pendingFrom || calendarMonth);
   renderDatePicker();
+  savePreferences();
 });
 $("picker-to").addEventListener("change", (e) => {
   pendingTo = e.target.value;
   datePreset = "Custom";
   pickingRange = false;
   renderDatePicker();
+  savePreferences();
 });
 
-$("nav-dashboard").onclick = () => {
-  document
-    .querySelectorAll(".app-page")
-    .forEach((p) => p.classList.add("hidden"));
-  $("dashboard-page").classList.remove("hidden");
-  $("nav-dashboard").classList.add("active");
-  $("nav-data").classList.remove("active");
-};
-$("nav-data").onclick = () => {
-  document
-    .querySelectorAll(".app-page")
-    .forEach((p) => p.classList.add("hidden"));
-  $("data-page").classList.remove("hidden");
-  $("nav-data").classList.add("active");
-  $("nav-dashboard").classList.remove("active");
-};
+$("nav-dashboard").onclick = () => showPage("dashboard");
+$("nav-data").onclick = () => showPage("data");
 document.querySelectorAll("[data-gc-upload]").forEach((input) =>
   input.addEventListener("change", async () => {
     const file = input.files?.[0];
@@ -888,10 +945,12 @@ $("expand-entities").onclick = () => {
 $("entity-search").addEventListener("input", (e) => {
   entitySearch = e.target.value;
   renderEntities();
+  savePreferences();
 });
 $("entity-account-filter").addEventListener("change", (e) => {
   entityAccountFilter = e.target.value;
   renderEntities();
+  savePreferences();
 });
 $("entity-options").addEventListener("click", (e) => {
   const button = e.target.closest("[data-tag]");
@@ -907,6 +966,7 @@ $("collapse-all").onclick = () => {
   if (expanded.size) expanded.clear();
   else allNodes.filter((n) => n.children).forEach((n) => expanded.add(n.id));
   render();
+  savePreferences();
 };
 $("select-all").onclick = () => {
   scopedCampaigns()
@@ -914,6 +974,7 @@ $("select-all").onclick = () => {
     .forEach((n) => selected.add(n.id));
   renderEntities();
   render();
+  savePreferences();
 };
 $("select-none").onclick = () => {
   scopedCampaigns()
@@ -921,9 +982,20 @@ $("select-none").onclick = () => {
     .forEach((n) => selected.delete(n.id));
   renderEntities();
   render();
+  savePreferences();
 };
 $("reset").onclick = () => {
+  clearSavedPreferences();
   campaigns.flatMap(leaves).forEach((n) => selected.add(n.id));
+  visible.clear();
+  ["spend", "leadsGc", "cpl", "l1in", "l1sent", "graduates", "orders", "paid", "roas"].forEach((id) =>
+    visible.add(id),
+  );
+  expanded.clear();
+  entityExpanded.clear();
+  inactiveTags.clear();
+  entitySearch = "";
+  entityAccountFilter = "all";
   tagFilter = "all";
   $("tag-filter").value = "all";
   dateFrom = "2026-06-01";
@@ -933,7 +1005,10 @@ $("reset").onclick = () => {
   datePreset = "Custom";
   $("period-error").textContent = "";
   renderDateButton();
+  renderColumns();
+  renderEntities();
   render();
+  savePreferences();
 };
 $("formulas-button").onclick = () => $("formulas-dialog").showModal();
 document.querySelectorAll("dialog").forEach((d) =>
@@ -950,6 +1025,8 @@ document.querySelectorAll("dialog").forEach((d) =>
     }
   }),
 );
+restorePreferencesForCurrentData({ initial: true });
+preferencesReady = true;
 renderDateButton();
 render();
 async function loadReport() {
@@ -967,16 +1044,9 @@ async function loadReport() {
     c,
     ...c.children.flatMap((a) => [a, ...a.children]),
   ]);
-  selectedAccounts.clear();
-  accounts.forEach((a) => selectedAccounts.add(a.id));
-  selected.clear();
-  campaigns.flatMap(leaves).forEach((n) => selected.add(n.id));
-  expanded.clear();
-  campaigns.forEach((c) => {
-    expanded.add(c.id);
-    c.children.forEach((a) => expanded.add(a.id));
-  });
+  restorePreferencesForCurrentData();
   render();
+  savePreferences();
 }
 loadReport().catch(() => {});
 if (document.modelContext?.registerTool) {
@@ -1014,6 +1084,7 @@ if (document.modelContext?.registerTool) {
           $("tag-filter").value = tagFilter;
           renderColumns();
           render();
+          savePreferences();
           return { columns: [...visible], tagFilter };
         },
       }),
