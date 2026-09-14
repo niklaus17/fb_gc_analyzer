@@ -71,18 +71,17 @@ const visible = new Set([
   "paidRate",
 ]);
 let tagFilter = "all";
-let currency = "USD";
-const INITIAL_FROM = "2026-01-01";
-const initialToday = (() => {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-})();
-let dateFrom = INITIAL_FROM,
-  dateTo = initialToday;
+const appSettings = {
+  defaultCurrency: "USD",
+  allTimeFrom: "2026-01-01",
+};
+let currency = appSettings.defaultCurrency;
+let dateFrom = "",
+  dateTo = "";
 let pendingFrom = dateFrom,
   pendingTo = dateTo,
   calendarMonth = dateFrom,
-  datePreset = "All time",
+  datePreset = "Last 7 days",
   pickingRange = false;
 let entitySearch = "",
   entityAccountFilter = "all";
@@ -264,9 +263,20 @@ function datePresets() {
     ["This month", thisMonthStart, today],
     ["Last 30 days", shiftDays(today, -30), yesterday],
     ["Last month", lastMonthDate, monthEnd(lastMonthDate)],
-    ["All time", INITIAL_FROM, today],
+    ["All time", appSettings.allTimeFrom, today],
   ];
 }
+function applyPresetRange(label) {
+  const preset = datePresets().find(([presetLabel]) => presetLabel === label);
+  if (!preset) return;
+  datePreset = preset[0];
+  dateFrom = preset[1];
+  dateTo = preset[2];
+  pendingFrom = dateFrom;
+  pendingTo = dateTo;
+  calendarMonth = monthStart(dateFrom);
+}
+applyPresetRange(datePreset);
 function divide(a, b, m = 1) {
   return b ? (a / b) * m : null;
 }
@@ -554,7 +564,7 @@ $("tag-filter").addEventListener("change", (e) => {
 });
 function renderAccountSummary() {
   const chosen = accounts.filter((a) => selectedAccounts.has(a.id));
-  currency = chosen[0]?.currency || "USD";
+  currency = chosen[0]?.currency || appSettings.defaultCurrency;
   $("currency").textContent = chosen.length ? currency : "—";
   $("accounts-summary").textContent =
     chosen.length === 1 ? chosen[0].name : chosen.length + " conturi selectate";
@@ -815,11 +825,7 @@ $("reset").onclick = () => {
   entityAccountFilter = "all";
   tagFilter = "all";
   $("tag-filter").value = "all";
-  dateFrom = INITIAL_FROM;
-  dateTo = todayIso();
-  pendingFrom = dateFrom;
-  pendingTo = dateTo;
-  datePreset = "All time";
+  applyPresetRange("Last 7 days");
   $("period-error").textContent = "";
   renderDateButton();
   renderColumns();
