@@ -218,19 +218,22 @@ app.get('/api/gc/data', async (request, response) => {
   const limit = Math.min(Number(request.query.limit || 100), 500);
   const like = '%' + search + '%';
   try {
-    let result;
+    let result, countResult;
     if (type === 'leads') {
       result = await pool.query(`SELECT email,gc_order_number AS number,COALESCE(lead_date::text,created_at::date::text) AS date,product_name,utm_campaign,utm_content,utm_term
         FROM gc_leads WHERE $1='' OR lower(email) LIKE $2 ORDER BY COALESCE(lead_date,created_at::date) DESC NULLS LAST LIMIT $3`, [search, like, limit]);
+      countResult = await pool.query(`SELECT COUNT(*)::int AS total FROM gc_leads WHERE $1='' OR lower(email) LIKE $2`, [search, like]);
     } else if (type === 'orders' || type === 'paid_orders') {
       const paidOnly = type === 'paid_orders';
       result = await pool.query(`SELECT email,order_number AS number,status,positions,cost_amount::float AS cost,paid_amount::float AS paid,currency,created_at::text AS date
         FROM gc_orders WHERE ($1='' OR lower(email) LIKE $2) AND ($4=false OR paid_amount>0 OR lower(status) LIKE '%finalizat%') ORDER BY created_at DESC NULLS LAST LIMIT $3`, [search, like, limit, paidOnly]);
+      countResult = await pool.query(`SELECT COUNT(*)::int AS total FROM gc_orders WHERE ($1='' OR lower(email) LIKE $2) AND ($3=false OR paid_amount>0 OR lower(status) LIKE '%finalizat%')`, [search, like, paidOnly]);
     } else {
       result = await pool.query(`SELECT email,event_type AS type,imported_at::text AS date FROM gc_events
         WHERE event_type=$1 AND ($2='' OR lower(email) LIKE $3) ORDER BY imported_at DESC LIMIT $4`, [type, search, like, limit]);
+      countResult = await pool.query(`SELECT COUNT(*)::int AS total FROM gc_events WHERE event_type=$1 AND ($2='' OR lower(email) LIKE $3)`, [type, search, like]);
     }
-    response.json({ ok: true, type, rows: result.rows });
+    response.json({ ok: true, type, total: countResult.rows[0]?.total || 0, rows: result.rows });
   } catch (error) { response.status(400).json({ error: error.message }); }
 });
 
