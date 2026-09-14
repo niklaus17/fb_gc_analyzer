@@ -60,9 +60,9 @@ app.get('/api/report', async (request, response) => {
       MAX(CASE WHEN event_type='l1in' THEN 1 ELSE 0 END)::int AS l1in,
       MAX(CASE WHEN event_type='l1sent' THEN 1 ELSE 0 END)::int AS l1sent,
       MAX(CASE WHEN event_type='graduates' THEN 1 ELSE 0 END)::int AS graduates,
-      MAX(CASE WHEN event_type='sub_16' THEN 1 ELSE 0 END)::int AS sub_16,
-      MAX(CASE WHEN event_type='16_17' THEN 1 ELSE 0 END)::int AS age_16_17,
-      MAX(CASE WHEN event_type='18_24' THEN 1 ELSE 0 END)::int AS age_18_24,
+      MAX(CASE WHEN event_type='sub_18' THEN 1 ELSE 0 END)::int AS sub_18,
+      MAX(CASE WHEN event_type='18_21' THEN 1 ELSE 0 END)::int AS age_18_21,
+      MAX(CASE WHEN event_type='22_24' THEN 1 ELSE 0 END)::int AS age_22_24,
       MAX(CASE WHEN event_type='25_34' THEN 1 ELSE 0 END)::int AS age_25_34,
       MAX(CASE WHEN event_type='35_44' THEN 1 ELSE 0 END)::int AS age_35_44,
       MAX(CASE WHEN event_type='45_plus' THEN 1 ELSE 0 END)::int AS age_45_plus
@@ -76,9 +76,9 @@ app.get('/api/report', async (request, response) => {
     COALESCE(SUM(COALESCE(order_stats.orders,0)),0)::int AS orders,
     COUNT(DISTINCT CASE WHEN COALESCE(order_stats.paid,0)>0 THEN lead_base.email END)::int AS paid,
     COALESCE(SUM(COALESCE(order_stats.revenue,0)),0)::float AS revenue,
-    COALESCE(SUM(COALESCE(event_stats.sub_16,0)),0)::int AS sub_16,
-    COALESCE(SUM(COALESCE(event_stats.age_16_17,0)),0)::int AS age_16_17,
-    COALESCE(SUM(COALESCE(event_stats.age_18_24,0)),0)::int AS age_18_24,
+    COALESCE(SUM(COALESCE(event_stats.sub_18,0)),0)::int AS sub_18,
+    COALESCE(SUM(COALESCE(event_stats.age_18_21,0)),0)::int AS age_18_21,
+    COALESCE(SUM(COALESCE(event_stats.age_22_24,0)),0)::int AS age_22_24,
     COALESCE(SUM(COALESCE(event_stats.age_25_34,0)),0)::int AS age_25_34,
     COALESCE(SUM(COALESCE(event_stats.age_35_44,0)),0)::int AS age_35_44,
     COALESCE(SUM(COALESCE(event_stats.age_45_plus,0)),0)::int AS age_45_plus
@@ -93,8 +93,8 @@ app.get('/api/report', async (request, response) => {
     FROM meta_ad_insights_daily WHERE insight_date BETWEEN $2 AND $3 GROUP BY account_id,ad_id
   ), ages AS (
     SELECT account_id,ad_id,
-      COALESCE(SUM(CASE WHEN age_bucket='13-17' THEN leads ELSE 0 END),0)::int AS sub_16,
-      COALESCE(SUM(CASE WHEN age_bucket='18-24' THEN leads ELSE 0 END),0)::int AS "18_24",
+      COALESCE(SUM(CASE WHEN age_bucket='13-17' THEN leads ELSE 0 END),0)::int AS sub_18,
+      COALESCE(SUM(CASE WHEN age_bucket='18-24' THEN leads ELSE 0 END),0)::int AS "22_24",
       COALESCE(SUM(CASE WHEN age_bucket='25-34' THEN leads ELSE 0 END),0)::int AS "25_34",
       COALESCE(SUM(CASE WHEN age_bucket='35-44' THEN leads ELSE 0 END),0)::int AS "35_44",
       COALESCE(SUM(CASE WHEN age_bucket IN ('45-54','55-64','65+') THEN leads ELSE 0 END),0)::int AS "45_plus"
@@ -103,7 +103,7 @@ app.get('/api/report', async (request, response) => {
     SELECT c.id AS campaign_id,c.name AS campaign_name,
     s.id AS adset_id,s.name AS adset_name,a.id AS ad_id,a.name AS ad_name,a.account_id,
     COALESCE(base.spend,0) AS spend,COALESCE(base.leads,0) AS leads,
-    COALESCE(ages.sub_16,0) AS sub_16,COALESCE(ages."18_24",0) AS "18_24",
+    COALESCE(ages.sub_18,0) AS sub_18,COALESCE(ages."22_24",0) AS "22_24",
     COALESCE(ages."25_34",0) AS "25_34",COALESCE(ages."35_44",0) AS "35_44",
     COALESCE(ages."45_plus",0) AS "45_plus"
     FROM ads a
@@ -133,9 +133,9 @@ app.get('/api/report', async (request, response) => {
       orders: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.orders || 0),
       paid: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.paid || 0),
       revenue: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.revenue || 0),
-      sub_16: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.sub_16 || 0),
-      '16_17': Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.age_16_17 || 0),
-      '18_24': Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.age_18_24 || 0),
+      sub_18: Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.sub_18 || 0),
+      '18_21': Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.age_18_21 || 0),
+      '22_24': Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.age_22_24 || 0),
       '25_34': Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.age_25_34 || 0),
       '35_44': Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.age_35_44 || 0),
       '45_plus': Number(gcByPath.get([row.campaign_name,row.adset_name,row.ad_name].join('||'))?.age_45_plus || 0),

@@ -17,7 +17,7 @@ Pagina **Date** conține:
 
 - import manual Facebook Ads pentru perioada selectată;
 - import GetCourse pentru CSV-uri complete: leaduri/înscrieri gratuite sau comenzi create/plătite;
-- import GetCourse pentru liste simple de emailuri: L1 intrat, L1 trimis, Absolvit și grupele de vârstă `sub_16`, `16_17`, `18_24`, `25_34`, `35_44`, `45_plus`.
+- import GetCourse pentru liste simple de emailuri: L1 intrat, L1 trimis, Absolvit și grupele de vârstă `sub_18`, `18_21`, `22_24`, `25_34`, `35_44`, `45_plus`.
 
 Importul Facebook salvează totalurile zilnice în PostgreSQL și folosește conversiile din fereastra `7-day click`. Reimportarea aceleiași perioade actualizează rândurile existente, fără dublare.
 

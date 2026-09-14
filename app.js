@@ -10,9 +10,9 @@ const columns = [
   ["orders", "Com creată", "number", "Rezultate"],
   ["paid", "Com plătită", "number", "Rezultate"],
   ["revenue", "Venit", "money", "Rezultate"],
-  ["sub_16", "sub_16", "number", "Vârstă · număr de leaduri"],
-  ["16_17", "16_17", "number", "Vârstă · număr de leaduri"],
-  ["18_24", "18_24", "number", "Vârstă · număr de leaduri"],
+  ["sub_18", "sub_18", "number", "Vârstă · număr de leaduri"],
+  ["18_21", "18_21", "number", "Vârstă · număr de leaduri"],
+  ["22_24", "22_24", "number", "Vârstă · număr de leaduri"],
   ["25_34", "25_34", "number", "Vârstă · număr de leaduri"],
   ["35_44", "35_44", "number", "Vârstă · număr de leaduri"],
   ["45_plus", "45_plus", "number", "Vârstă · număr de leaduri"],
@@ -25,7 +25,7 @@ const columns = [
 ];
 const PREF_KEY = "campaignsheet.preferences.v2";
 const LEGACY_PREF_KEY = "campaignsheet.preferences";
-const ageKeys = ["sub_16", "16_17", "18_24", "25_34", "35_44", "45_plus"];
+const ageKeys = ["sub_18", "18_21", "22_24", "25_34", "35_44", "45_plus"];
 const baseKeys = [
   "spend",
   "leadsGc",

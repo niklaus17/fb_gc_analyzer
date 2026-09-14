@@ -54,18 +54,18 @@ accounts = [
 campaigns = [
   { id: 'camp-md', accountId: 'acct-md', name: 'Camp MD', children: [
     { id: 'adset-md', accountId: 'acct-md', name: 'Adset MD', children: [
-      { id: 'ad-md-1', accountId: 'acct-md', name: 'Ad MD 1', spend: 100, leadsGc: 20, leadsFb: 18, l1in: 10, l1sent: 8, graduates: 4, orders: 3, paid: 2, revenue: 300, sub_16: 0, '16_17': 0, '18_24': 7, '25_34': 8, '35_44': 3, '45_plus': 2 },
-      { id: 'ad-md-2', accountId: 'acct-md', name: 'Ad MD 2', spend: 50, leadsGc: 10, leadsFb: 9, l1in: 5, l1sent: 4, graduates: 2, orders: 1, paid: 1, revenue: 120, sub_16: 0, '16_17': 0, '18_24': 3, '25_34': 4, '35_44': 2, '45_plus': 1 },
+      { id: 'ad-md-1', accountId: 'acct-md', name: 'Ad MD 1', spend: 100, leadsGc: 20, leadsFb: 18, l1in: 10, l1sent: 8, graduates: 4, orders: 3, paid: 2, revenue: 300, sub_18: 0, '18_21': 0, '22_24': 7, '25_34': 8, '35_44': 3, '45_plus': 2 },
+      { id: 'ad-md-2', accountId: 'acct-md', name: 'Ad MD 2', spend: 50, leadsGc: 10, leadsFb: 9, l1in: 5, l1sent: 4, graduates: 2, orders: 1, paid: 1, revenue: 120, sub_18: 0, '18_21': 0, '22_24': 3, '25_34': 4, '35_44': 2, '45_plus': 1 },
     ] },
   ] },
   { id: 'camp-ro', accountId: 'acct-ro', name: 'Camp RO', children: [
     { id: 'adset-ro', accountId: 'acct-ro', name: 'Adset RO', children: [
-      { id: 'ad-ro-1', accountId: 'acct-ro', name: 'Ad RO 1', spend: 80, leadsGc: 16, leadsFb: 15, l1in: 8, l1sent: 6, graduates: 3, orders: 2, paid: 1, revenue: 150, sub_16: 0, '16_17': 0, '18_24': 5, '25_34': 6, '35_44': 3, '45_plus': 2 },
+      { id: 'ad-ro-1', accountId: 'acct-ro', name: 'Ad RO 1', spend: 80, leadsGc: 16, leadsFb: 15, l1in: 8, l1sent: 6, graduates: 3, orders: 2, paid: 1, revenue: 150, sub_18: 0, '18_21': 0, '22_24': 5, '25_34': 6, '35_44': 3, '45_plus': 2 },
     ] },
   ] },
   { id: 'camp-eu', accountId: 'acct-eu', name: 'Camp EU', children: [
     { id: 'adset-eu', accountId: 'acct-eu', name: 'Adset EU', children: [
-      { id: 'ad-eu-1', accountId: 'acct-eu', name: 'Ad EU 1', spend: 70, leadsGc: 7, leadsFb: 6, l1in: 4, l1sent: 3, graduates: 2, orders: 1, paid: 1, revenue: 90, sub_16: 0, '16_17': 0, '18_24': 2, '25_34': 3, '35_44': 1, '45_plus': 1 },
+      { id: 'ad-eu-1', accountId: 'acct-eu', name: 'Ad EU 1', spend: 70, leadsGc: 7, leadsFb: 6, l1in: 4, l1sent: 3, graduates: 2, orders: 1, paid: 1, revenue: 90, sub_18: 0, '18_21': 0, '22_24': 2, '25_34': 3, '35_44': 1, '45_plus': 1 },
     ] },
   ] },
 ];
