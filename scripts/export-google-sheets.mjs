@@ -22,6 +22,28 @@ function toCsv(headers, rows) {
   return [headers.join(','), ...rows.map((row) => headers.map((header) => csvValue(row[header])).join(','))].join('\n');
 }
 
+async function readJsonResponse(response, context) {
+  const text = await response.text();
+  try { return JSON.parse(text); }
+  catch {
+    throw new Error(`${context}: Apps Script a răspuns cu HTML, nu JSON. Verifică URL-ul /exec și fă redeploy la Web App ca "Anyone with the link". Răspuns: ${text.slice(0, 160)}`);
+  }
+}
+
+async function preflight(config) {
+  const url = new URL(config.apiUrl);
+  url.searchParams.set('action', 'schema');
+  url.searchParams.set('token', config.token);
+  const response = await fetch(url);
+  const body = await readJsonResponse(response, 'Preflight');
+  if (!response.ok || body.ok === false) {
+    throw new Error(`Preflight: ${body.error || response.statusText}. Verifică dacă APP_TOKEN din Apps Script este identic cu googleApiToken din config.local.js.`);
+  }
+  if (!body.sheets?.meta_daily) {
+    throw new Error('Preflight: Apps Script nu are schema actualizată. Copiază ultima versiune apps-script/Code.gs, rulează setup() și redeploy New version.');
+  }
+}
+
 async function postSheet({ apiUrl, token }, sheet, csv) {
   const url = new URL(apiUrl);
   url.searchParams.set('action', 'importSheet');
@@ -33,9 +55,7 @@ async function postSheet({ apiUrl, token }, sheet, csv) {
     headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     body: csv,
   });
-  const text = await response.text();
-  let body;
-  try { body = JSON.parse(text); } catch { throw new Error(`${sheet}: răspuns invalid din Apps Script: ${text.slice(0, 200)}`); }
+  const body = await readJsonResponse(response, sheet);
   if (!response.ok || body.ok === false) throw new Error(`${sheet}: ${body.error || response.statusText}`);
   return body.imported || 0;
 }
@@ -52,6 +72,7 @@ async function main() {
     throw new Error('Folosește perioada în format: npm run google:export -- 2026-01-01 2026-09-15');
   }
   const localConfig = parseLocalConfig(await readFile('config.local.js', 'utf8'));
+  await preflight(localConfig);
   const exports = [
     {
       sheet: 'ad_accounts',
