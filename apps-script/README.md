@@ -4,7 +4,7 @@
 2. Deschide Extensions → Apps Script.
 3. Copiază conținutul din `Code.gs`.
 4. Schimbă `APP_TOKEN` cu o valoare privată.
-5. Rulează funcția `setup()` o dată pentru a crea taburile.
+5. Rulează funcția `setup()` o dată pentru a crea taburile. Ruleaz-o din nou după update-uri de schemă, ca să apară filele noi pentru evenimente.
 6. Deploy → New deployment → Web app:
    - Execute as: Me
    - Who has access: Anyone with the link
@@ -35,3 +35,20 @@ POST ?action=gcImport&kind=leads&token=...
 POST ?action=gcImport&kind=orders&token=...
 POST ?action=gcImport&kind=l1sent&token=...
 ```
+
+
+## File evenimente GetCourse
+
+Pentru import manual mai simplu, evenimentele sunt în file separate cu o singură coloană `email`:
+
+- `gc_l1in`
+- `gc_l1sent`
+- `gc_graduates`
+- `gc_age_sub_18`
+- `gc_age_18_21`
+- `gc_age_22_24`
+- `gc_age_25_34`
+- `gc_age_35_44`
+- `gc_age_45_plus`
+
+Fila `gc_events` rămâne compatibilă ca format combinat (`email`, `event_type`, `imported_at`). Raportul citește atât filele separate, cât și `gc_events`, deci putem folosi oricare dintre variante. Pentru GetCourse recomand filele separate, deoarece poți încărca liste simple de emailuri fără `imported_at`.

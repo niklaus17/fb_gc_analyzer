@@ -14,10 +14,30 @@ const SHEETS = {
   gc_leads: ['email', 'gc_order_number', 'created_at', 'lead_date', 'product_name', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'status'],
   gc_orders: ['email', 'order_number', 'status', 'positions', 'cost_amount', 'paid_amount', 'currency', 'created_at'],
   gc_events: ['email', 'event_type', 'imported_at'],
+  gc_l1in: ['email'],
+  gc_l1sent: ['email'],
+  gc_graduates: ['email'],
+  gc_age_sub_18: ['email'],
+  gc_age_18_21: ['email'],
+  gc_age_22_24: ['email'],
+  gc_age_25_34: ['email'],
+  gc_age_35_44: ['email'],
+  gc_age_45_plus: ['email'],
 };
 
 const AGE_KEYS = ['sub_18', '18_21', '22_24', '25_34', '35_44', '45_plus'];
 const EVENT_TYPES = ['l1in', 'l1sent', 'graduates', ...AGE_KEYS];
+const EVENT_SHEETS = {
+  l1in: 'gc_l1in',
+  l1sent: 'gc_l1sent',
+  graduates: 'gc_graduates',
+  sub_18: 'gc_age_sub_18',
+  '18_21': 'gc_age_18_21',
+  '22_24': 'gc_age_22_24',
+  '25_34': 'gc_age_25_34',
+  '35_44': 'gc_age_35_44',
+  '45_plus': 'gc_age_45_plus',
+};
 
 function setup() {
   const ss = SpreadsheetApp.getActive();
@@ -40,10 +60,17 @@ function doPost(e) {
   try {
     guard_(e);
     const action = e.parameter.action || 'gcImport';
-    if (action !== 'gcImport') return json_({ ok: false, error: 'Unknown action' }, 400);
-    const kind = e.parameter.kind;
     const body = e.postData && e.postData.contents ? e.postData.contents : '';
-    return json_({ ok: true, kind, imported: importGetCourse_(kind, body) });
+    if (action === 'gcImport') {
+      const kind = e.parameter.kind;
+      return json_({ ok: true, kind, imported: importGetCourse_(kind, body) });
+    }
+    if (action === 'importSheet') {
+      const sheet = e.parameter.sheet;
+      const mode = e.parameter.mode || 'replace';
+      return json_({ ok: true, sheet, imported: importSheet_(sheet, body, mode) });
+    }
+    return json_({ ok: false, error: 'Unknown action' }, 400);
   } catch (error) {
     return json_({ ok: false, error: error.message }, 400);
   }
@@ -111,13 +138,7 @@ function getGcAggregates_(from, to) {
     if (paid > 0 || /finalizat/i.test(order.status || '')) stats.paid = 1;
     stats.revenue += paid;
   });
-  const eventsByEmail = new Map();
-  rows_('gc_events').forEach((event) => {
-    const email = cleanEmail_(event.email);
-    if (!email) return;
-    if (!eventsByEmail.has(email)) eventsByEmail.set(email, new Set());
-    eventsByEmail.get(email).add(event.event_type);
-  });
+  const eventsByEmail = getEventsByEmail_();
   const byPath = new Map();
   rows_('gc_leads').forEach((lead) => {
     const leadDate = (lead.lead_date || String(lead.created_at || '').slice(0, 10));
@@ -129,6 +150,22 @@ function getGcAggregates_(from, to) {
     addLead_(target, lead, eventsByEmail, ordersByEmail);
   });
   return { byPath };
+}
+
+
+function getEventsByEmail_() {
+  const eventsByEmail = new Map();
+  const add = (email, eventType) => {
+    email = cleanEmail_(email);
+    if (!email || !eventType) return;
+    if (!eventsByEmail.has(email)) eventsByEmail.set(email, new Set());
+    eventsByEmail.get(email).add(eventType);
+  };
+  rows_('gc_events').forEach((event) => add(event.email, event.event_type));
+  Object.entries(EVENT_SHEETS).forEach(([eventType, sheetName]) => {
+    rows_(sheetName).forEach((row) => add(row.email, eventType));
+  });
+  return eventsByEmail;
 }
 
 function addLead_(target, lead, eventsByEmail, ordersByEmail) {
@@ -155,13 +192,35 @@ function addLead_(target, lead, eventsByEmail, ordersByEmail) {
   });
 }
 
+
+function importSheet_(sheetName, body, mode) {
+  if (!SHEETS[sheetName]) throw new Error('Unknown sheet: ' + sheetName);
+  const parsed = parseCsv_(body);
+  if (!parsed.length) return 0;
+  const ss = SpreadsheetApp.getActive();
+  const sheet = ensureSheet_(ss, sheetName, SHEETS[sheetName]);
+  const headers = SHEETS[sheetName];
+  const first = parsed[0].map(normalizeKey_);
+  const hasHeader = headers.every((header) => first.includes(header));
+  const records = records_(parsed, headers);
+  if (mode === 'replace') {
+    sheet.clearContents();
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    if (!records.length) return 0;
+    sheet.getRange(2, 1, records.length, headers.length).setValues(records.map((record) => headers.map((header) => record[header] || '')));
+    return records.length;
+  }
+  records.forEach((record) => sheet.appendRow(headers.map((header) => record[header] || '')));
+  return records.length;
+}
+
 function importGetCourse_(kind, body) {
   if (!kind) throw new Error('Missing kind');
   const parsed = parseCsv_(body);
   if (!parsed.length) return 0;
   if (kind === 'leads') return upsertRows_('gc_leads', records_(parsed, SHEETS.gc_leads), 'gc_order_number');
   if (kind === 'orders') return upsertRows_('gc_orders', records_(parsed, SHEETS.gc_orders), 'order_number');
-  if (EVENT_TYPES.includes(kind)) return upsertRows_('gc_events', records_(parsed, ['email']).map((row) => ({ email: row.email, event_type: kind, imported_at: new Date().toISOString() })), ['email', 'event_type']);
+  if (EVENT_TYPES.includes(kind)) return upsertRows_(EVENT_SHEETS[kind], records_(parsed, ['email']).map((row) => ({ email: cleanEmail_(row.email) })), 'email');
   throw new Error('Unknown GetCourse kind');
 }
 
