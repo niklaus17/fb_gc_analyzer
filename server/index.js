@@ -1,4 +1,5 @@
 import express from 'express';
+import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { getConfig } from './config.js';
@@ -11,6 +12,17 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 app.use(express.json());
 app.use(express.text({ type: ['text/*', 'application/csv', 'text/csv'], limit: '20mb' }));
 app.use(express.static(root));
+
+function runNodeScript(scriptPath) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [scriptPath], { cwd: root, env: process.env });
+    let output = '', errorOutput = '';
+    child.stdout.on('data', (chunk) => output += chunk.toString());
+    child.stderr.on('data', (chunk) => errorOutput += chunk.toString());
+    child.on('error', reject);
+    child.on('close', (code) => code === 0 ? resolve(output.trim()) : reject(new Error(errorOutput.trim() || output.trim() || `Proces terminat cu cod ${code}`)));
+  });
+}
 
 app.get('/api/health', async (_request, response) => {
   try { await pool.query('SELECT 1'); response.json({ ok: true, database: 'connected' }); }
@@ -243,6 +255,40 @@ app.get('/api/gc/data', async (request, response) => {
   } catch (error) { response.status(400).json({ error: error.message }); }
 });
 
+
+
+app.post('/api/google/import', async (_request, response) => {
+  try {
+    const output = await runNodeScript('scripts/import-google-sheets.mjs');
+    response.json({ ok: true, output });
+  } catch (error) { response.status(500).json({ error: error.message }); }
+});
+
+app.get('/api/orders/summary', async (_request, response) => {
+  try {
+    const totals = await pool.query(`SELECT COUNT(*)::int AS orders,
+      COUNT(DISTINCT lower(email))::int AS customers,
+      COALESCE(SUM(paid_amount),0)::float AS revenue,
+      COALESCE(SUM(GREATEST(cost_amount-paid_amount,0)),0)::float AS remaining
+      FROM gc_orders WHERE paid_amount>0 OR lower(status) LIKE '%finalizat%'`);
+    const byMonth = await pool.query(`SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month,
+      COUNT(*)::int AS orders, COALESCE(SUM(paid_amount),0)::float AS revenue
+      FROM gc_orders WHERE (paid_amount>0 OR lower(status) LIKE '%finalizat%') AND created_at IS NOT NULL
+      GROUP BY 1 ORDER BY 1 DESC LIMIT 12`);
+    const byCampaign = await pool.query(`SELECT COALESCE(l.utm_campaign,'Fără UTM') AS campaign,
+      COUNT(DISTINCT o.order_number)::int AS orders, COUNT(DISTINCT lower(o.email))::int AS customers,
+      COALESCE(SUM(o.paid_amount),0)::float AS revenue
+      FROM gc_orders o LEFT JOIN gc_leads l ON lower(l.email)=lower(o.email)
+      WHERE o.paid_amount>0 OR lower(o.status) LIKE '%finalizat%'
+      GROUP BY 1 ORDER BY revenue DESC LIMIT 12`);
+    const byPlan = await pool.query(`SELECT CASE WHEN lower(positions) LIKE '%integral%' THEN 'Integral' WHEN lower(positions) LIKE '%rata%' THEN 'Rate' ELSE 'Alt tip' END AS plan,
+      COUNT(*)::int AS orders, COUNT(DISTINCT lower(email))::int AS customers,
+      COALESCE(SUM(paid_amount),0)::float AS revenue, COALESCE(SUM(GREATEST(cost_amount-paid_amount,0)),0)::float AS remaining
+      FROM gc_orders WHERE paid_amount>0 OR lower(status) LIKE '%finalizat%'
+      GROUP BY 1 ORDER BY revenue DESC`);
+    response.json({ ok: true, totals: totals.rows[0], byMonth: byMonth.rows, byCampaign: byCampaign.rows, byPlan: byPlan.rows });
+  } catch (error) { response.status(400).json({ error: error.message }); }
+});
 
 app.get('/api/google/imports/latest', async (_request, response) => {
   try {

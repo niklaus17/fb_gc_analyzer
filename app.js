@@ -23,7 +23,7 @@ const columns = [
   ["roas", "ROAS", "ratio", "Indicatori calculați"],
   ["paidRate", "Lead → Plătit %", "percent", "Indicatori calculați"],
 ];
-const PREF_KEY = "campaignsheet.preferences.v2";
+const PREF_KEY = "campaignsheet.preferences.v3";
 const LEGACY_PREF_KEY = "campaignsheet.preferences";
 const ageKeys = ["sub_18", "18_21", "22_24", "25_34", "35_44", "45_plus"];
 const defaultVisibleColumns = [
@@ -33,7 +33,6 @@ const defaultVisibleColumns = [
   "l1in",
   "l1sent",
   "graduates",
-  ...ageKeys,
   "orders",
   "paid",
   "cpl1",
@@ -368,6 +367,29 @@ function renderAgeAnalysis(rows) {
   $("age-body").innerHTML = entries.some((row) => row.leadsGc || row.l1sent || row.paid)
     ? entries.map((row) => `<tr><td><strong>${row.key}</strong></td><td>${format(row.leadsGc, "number")}</td><td>${format(row.l1sent, "number")}</td><td>${format(row.graduates, "number")}</td><td>${format(row.graduationRate, "percent")}</td><td>${format(row.orders, "number")}</td><td>${format(row.paid, "number")}</td><td>${format(row.revenue, "money")}</td><td>${format(row.paidRate, "percent")}</td></tr>`).join("")
     : `<tr><td class="empty" colspan="9">Nu există încă date de vârstă pentru selecția curentă. Încarcă listele de emailuri pe vârstă în pagina Date.</td></tr>`;
+}
+async function loadPaidOrdersSummary() {
+  if (!$('paid-orders-summary')) return;
+  try {
+    const response = await fetch('/api/orders/summary');
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Nu pot încărca comenzile plătite.');
+    const totals = result.totals || {};
+    $('paid-orders-summary').innerHTML = [
+      ['Comenzi plătite', format(Number(totals.orders || 0), 'number'), 'comenzi finalizate sau cu plată'],
+      ['Clienți plătitori', format(Number(totals.customers || 0), 'number'), 'emailuri unice'],
+      ['Încasat', format(Number(totals.revenue || 0), 'money'), 'sumă plătită'],
+      ['Rămas de încasat', format(Number(totals.remaining || 0), 'money'), 'cost − plătit'],
+    ].map(([label, value, detail]) => `<article><small>${label}</small><strong>${value}</strong><span>${detail}</span></article>`).join('');
+    const table = (rows, cols, empty) => rows?.length
+      ? rows.map((row) => `<tr>${cols.map(([key, type]) => `<td>${type ? format(Number(row[key] || 0), type) : row[key]}</td>`).join('')}</tr>`).join('')
+      : `<tr><td class="empty" colspan="${cols.length}">${empty}</td></tr>`;
+    $('paid-by-campaign').innerHTML = table(result.byCampaign, [['campaign'], ['orders', 'number'], ['customers', 'number'], ['revenue', 'money']], 'Nu sunt comenzi plătite cu UTM.');
+    $('paid-by-month').innerHTML = table(result.byMonth, [['month'], ['orders', 'number'], ['revenue', 'money']], 'Nu sunt comenzi plătite pe luni.');
+    $('paid-by-plan').innerHTML = table(result.byPlan, [['plan'], ['orders', 'number'], ['customers', 'number'], ['revenue', 'money'], ['remaining', 'money']], 'Nu sunt date despre tipul plății.');
+  } catch (error) {
+    $('paid-orders-summary').innerHTML = `<article><small>Comenzi plătite</small><strong>—</strong><span>${error.message}</span></article>`;
+  }
 }
 function render() {
   renderAccountSummary();
@@ -801,13 +823,13 @@ async function confirmGetCourseImport() {
   render();
   await loadGcData();
 }
-$("gc-record-file").addEventListener("change", (event) =>
+$("gc-record-file")?.addEventListener("change", (event) =>
   previewGetCourseFile(event.target, $("gc-record-kind").value),
 );
-$("gc-list-file").addEventListener("change", (event) =>
+$("gc-list-file")?.addEventListener("change", (event) =>
   previewGetCourseFile(event.target, $("gc-list-kind").value),
 );
-$("gc-import-preview").addEventListener("click", async (event) => {
+$("gc-import-preview")?.addEventListener("click", async (event) => {
   if (event.target.id === "gc-cancel-import") {
     pendingGcImport = null;
     $("gc-import-preview").classList.add("hidden");
@@ -847,14 +869,33 @@ async function loadGcData(page = gcDataPage) {
     status.textContent = error.message;
   }
 }
+async function runGoogleImport() {
+  const button = $("google-import-button"), status = $("google-import-status");
+  if (!button || !status) return;
+  button.disabled = true;
+  status.textContent = "Import din Google Sheets în desfășurare...";
+  try {
+    const response = await fetch("/api/google/import", { method: "POST" });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Importul Google Sheets a eșuat.");
+    status.textContent = "Import Google Sheets finalizat. Reîncarc datele locale...";
+    await Promise.all([loadReport(), loadGcData(0), loadGoogleImportStatus(), loadPaidOrdersSummary()]);
+  } catch (error) {
+    status.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
 async function loadGoogleImportStatus() {
   if (!$("google-import-status")) return;
   try {
     const response = await fetch("/api/google/imports/latest");
     const result = await response.json();
     if (!result) { $("google-import-status").textContent = "Ultimul import Google Sheets: nu există încă."; return; }
-    const details = (result.sheets || []).map((s) => `${s.sheet_name}: ${s.rows_imported}/${s.rows_read}`).join(" · ");
-    $("google-import-status").textContent = `Ultimul import Google Sheets: ${result.status} · ${result.finished_at || result.started_at}${details ? " · " + details : ""}`;
+    const sheets = result.sheets || [];
+    const read = sheets.reduce((sum, s) => sum + Number(s.rows_read || 0), 0);
+    const imported = sheets.reduce((sum, s) => sum + Number(s.rows_imported || 0), 0);
+    $("google-import-status").textContent = `Ultimul import Google Sheets: ${result.status} · ${result.finished_at || result.started_at} · ${imported}/${read} rânduri importate`;
   } catch {
     $("google-import-status").textContent = "Ultimul import Google Sheets: nu poate fi citit.";
   }
@@ -864,6 +905,7 @@ $("gc-data-prev").onclick = () => loadGcData(gcDataPage - 1);
 $("gc-data-next").onclick = () => loadGcData(gcDataPage + 1);
 $("gc-data-type").addEventListener("change", () => loadGcData(0));
 $("gc-data-search").addEventListener("keydown", (event) => { if (event.key === "Enter") loadGcData(0); });
+$("google-import-button")?.addEventListener("click", runGoogleImport);
 loadGoogleImportStatus();
 $("sync-meta").addEventListener("click", async () => {
   const button = $("sync-meta"),
@@ -1027,7 +1069,7 @@ async function loadReport() {
   savePreferences();
 }
 
-loadReport().catch((error) => { console.error(error); });
+loadReport().then(loadPaidOrdersSummary).catch((error) => { console.error(error); });
 if (document.modelContext?.registerTool) {
   try {
     Promise.resolve(

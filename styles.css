@@ -1559,3 +1559,5 @@ input[type=date]:focus-visible {
 
 
 .gc-data-pagination{display:flex;gap:10px;align-items:center;justify-content:flex-end;padding:10px 20px;border-top:1px solid var(--border)}.gc-data-pagination button{border:1px solid var(--border);background:#fff;border-radius:7px;padding:8px 12px;color:var(--ink)}.gc-data-pagination button:disabled{opacity:.45;cursor:not-allowed}.gc-data-pagination span{color:var(--muted);font-size:13px}
+
+.paid-orders{margin-top:18px}.paid-grids{display:grid;grid-template-columns:1.4fr 1fr 1.1fr;gap:16px;padding:18px 20px}.paid-grids h3{margin:0 0 10px;font-size:14px}.paid-grids table{width:100%;border-collapse:collapse;border:1px solid var(--border);border-radius:8px;overflow:hidden}.paid-grids th,.paid-grids td{text-align:left;border-bottom:1px solid var(--border);padding:10px;font-size:12px}.paid-grids th{background:#f5f8f6;color:#607467}@media(max-width:980px){.paid-grids{grid-template-columns:1fr}}

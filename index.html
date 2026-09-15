@@ -74,45 +74,26 @@
             <div class="age-insights" id="age-insights"></div>
             <div class="table-scroll"><table><thead id="age-head"></thead><tbody id="age-body"></tbody></table></div>
         </section>
+
+        <section class="sheet paid-orders" aria-label="Analiză comenzi plătite">
+            <div class="sheet-top"><div class="sheet-title"><span class="sheet-icon">▣</span><strong>Comenzi plătite</strong><span class="count">date locale</span></div></div>
+            <div class="age-insights" id="paid-orders-summary"></div>
+            <div class="paid-grids">
+                <div><h3>Achitări după campanie</h3><table><thead><tr><th>Campanie</th><th>Comenzi</th><th>Clienți</th><th>Încasat</th></tr></thead><tbody id="paid-by-campaign"></tbody></table></div>
+                <div><h3>Achitări pe luni</h3><table><thead><tr><th>Lună</th><th>Comenzi</th><th>Încasat</th></tr></thead><tbody id="paid-by-month"></tbody></table></div>
+                <div><h3>Rate vs integral</h3><table><thead><tr><th>Tip</th><th>Comenzi</th><th>Clienți</th><th>Încasat</th><th>Rămas</th></tr></thead><tbody id="paid-by-plan"></tbody></table></div>
+            </div>
+        </section>
         <div class="bottom-note"><span>ⓘ Datele reale rămân în baza locală. Repository-ul public nu include importuri Facebook sau CSV-uri GetCourse.</span><button id="formulas-button">Cum se calculează indicatorii ↗</button></div>
     </main>
+
     <main id="data-page" class="app-page hidden">
         <div class="page-heading">
-            <div><div class="eyebrow">IMPORTURI</div><h1>Date</h1><p>Actualizează Facebook Ads și încarcă fișiere CSV din GetCourse.</p></div>
+            <div><div class="eyebrow">IMPORTURI</div><h1>Date</h1><p>Actualizează Facebook Ads, sincronizează Google Sheets și verifică datele locale.</p></div>
         </div>
         <section class="sheet import-sheet">
             <div class="sheet-top"><div class="sheet-title"><span class="sheet-icon">↻</span><strong>Facebook Ads</strong></div></div>
             <div class="import-grid"><div><p>Importă performanța Meta pentru perioada selectată în dashboard.</p></div><div class="sync-control"><button id="sync-meta" class="sync-button"><span>↻</span> Actualizează din Facebook</button><small id="sync-status" role="status">Backend local în așteptare</small></div></div>
-        </section>
-        <section class="sheet import-sheet">
-            <div class="sheet-top"><div class="sheet-title"><span class="sheet-icon">⇧</span><strong>GetCourse CSV</strong></div></div>
-            <div class="gc-import-panel">
-                <div class="gc-import-row">
-                    <div><strong>CSV cu date complete</strong><small>Folosește pentru leaduri cu UTM-uri sau comenzi create/plătite.</small></div>
-                    <label><span class="sr-only">Tip CSV GetCourse</span><select id="gc-record-kind">
-                        <option value="leads">Leaduri / înscrieri gratuite</option>
-                        <option value="orders">Comenzi create / plătite</option>
-                    </select></label>
-                    <label class="file-button">Încarcă CSV<input type="file" id="gc-record-file" accept=".csv,text/csv"></label>
-                </div>
-                <div class="gc-import-row">
-                    <div><strong>Listă de emailuri</strong><small>Un email pe rând sau CSV cu prima coloană/email.</small></div>
-                    <label><span class="sr-only">Tip listă GetCourse</span><select id="gc-list-kind">
-                        <option value="l1in">L1 intrat</option>
-                        <option value="l1sent">L1 trimis</option>
-                        <option value="graduates">Absolvit</option>
-                        <option value="sub_18">Vârstă: sub_18</option>
-                        <option value="18_21">Vârstă: 18_21</option>
-                        <option value="22_24">Vârstă: 22_24</option>
-                        <option value="25_34">Vârstă: 25_34</option>
-                        <option value="35_44">Vârstă: 35_44</option>
-                        <option value="45_plus">Vârstă: 45_plus</option>
-                    </select></label>
-                    <label class="file-button">Încarcă lista<input type="file" id="gc-list-file" accept=".csv,.txt,text/csv,text/plain"></label>
-                </div>
-            </div>
-            <div class="import-preview hidden" id="gc-import-preview"></div>
-            <div class="import-status" id="gc-import-status" role="status">Alege tipul datelor și încarcă fișierul GetCourse.</div>
         </section>
         <section class="sheet import-sheet">
             <div class="sheet-top"><div class="sheet-title"><span class="sheet-icon">▦</span><strong>Date importate</strong></div></div>
@@ -133,6 +114,7 @@
                 </select>
                 <input id="gc-data-search" type="search" placeholder="Caută email">
                 <button id="gc-data-refresh" type="button">Afișează</button>
+                <button id="google-import-button" class="primary" type="button">Importă din Google Sheets</button>
             </div>
             <div class="table-scroll gc-data-scroll"><table><thead id="gc-data-head"></thead><tbody id="gc-data-body"></tbody></table></div>
             <div class="gc-data-pagination"><button id="gc-data-prev" type="button">← Anterior</button><span id="gc-data-page">Pagina 1</span><button id="gc-data-next" type="button">Următor →</button></div>
