@@ -990,38 +990,10 @@ function normalizeReportData(report) {
   }
 }
 
-async function fetchReportJson() {
-  const endpoint = reportEndpoint();
-  if (!endpoint) return null;
-  const response = await fetch(endpoint);
-  const text = await response.text();
-  let report;
-  try { report = JSON.parse(text); }
-  catch {
-    const error = new Error("Apps Script nu a întors JSON. Verifică dacă ai făcut redeploy la Web App cu ultima versiune /exec.");
-    error.auth = isGoogleDataSource();
-    throw error;
-  }
-  if (!response.ok || report.ok === false) {
-    const error = new Error(report.error || "Tokenul nu a fost acceptat.");
-    error.auth = isGoogleDataSource();
-    throw error;
-  }
-  return report;
-}
 async function loadReport() {
-  if (needsGoogleLogin()) { showLogin(); return; }
-  let report;
-  try { report = await fetchReportJson(); }
-  catch (error) {
-    if (error.auth) {
-      localStorage.removeItem(GOOGLE_TOKEN_KEY);
-      appSettings.googleApiToken = "";
-      showLogin(error.message || "Tokenul nu a fost acceptat. Verifică tokenul și încearcă din nou.");
-    }
-    return;
-  }
-  if (!report) return;
+  const response = await fetch(reportEndpoint());
+  if (!response.ok) return;
+  const report = await response.json();
   normalizeReportData(report);
   allNodes = campaigns.flatMap((c) => [
     c,
@@ -1032,7 +1004,7 @@ async function loadReport() {
   savePreferences();
 }
 
-loadReport().catch(() => {});
+loadReport().catch((error) => { console.error(error); });
 if (document.modelContext?.registerTool) {
   try {
     Promise.resolve(
