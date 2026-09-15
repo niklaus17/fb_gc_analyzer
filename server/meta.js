@@ -3,10 +3,50 @@ import { pool, withTransaction } from './db.js';
 
 const WEBSITE_LEAD_ACTION = 'lead';
 const ATTRIBUTION_WINDOW = '7d_click';
+const TRANSIENT_META_CODES = new Set([1, 2, 4, 17, 32, 613]);
+const RETRY_DELAYS_MS = [1000, 3000, 7000];
 
 export function leadCount(actions = []) {
   const action = actions.find(({ action_type }) => action_type === WEBSITE_LEAD_ACTION);
   return Number(action?.[ATTRIBUTION_WINDOW] || 0);
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function metaErrorMessage(response, body) {
+  const meta = body?.error || {};
+  const details = [
+    meta.message,
+    meta.error_user_msg,
+    meta.code && `cod ${meta.code}`,
+    meta.error_subcode && `subcod ${meta.error_subcode}`,
+  ].filter(Boolean);
+  return details.join(' · ') || `Meta API: HTTP ${response.status}.`;
+}
+
+function isTransientMetaError(response, body) {
+  const code = Number(body?.error?.code || 0);
+  return response.status >= 500 || TRANSIENT_META_CODES.has(code);
+}
+
+async function fetchMetaJson(url) {
+  let lastError;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      const response = await fetch(url);
+      const body = await response.json();
+      if (response.ok && !body.error) return body;
+      lastError = new Error(metaErrorMessage(response, body));
+      if (!isTransientMetaError(response, body) || attempt === RETRY_DELAYS_MS.length) throw lastError;
+    } catch (error) {
+      lastError = error;
+      if (attempt === RETRY_DELAYS_MS.length) throw lastError;
+    }
+    await wait(RETRY_DELAYS_MS[attempt]);
+  }
+  throw lastError;
 }
 
 async function graph(path, params = {}) {
@@ -16,14 +56,7 @@ async function graph(path, params = {}) {
   for (const [key, value] of Object.entries({ ...params, access_token: metaAccessToken })) {
     url.searchParams.set(key, typeof value === 'string' ? value : JSON.stringify(value));
   }
-  const response = await fetch(url);
-  const body = await response.json();
-  if (!response.ok || body.error) {
-    const meta = body.error || {};
-    const details = [meta.message, meta.error_user_msg, meta.code && `cod ${meta.code}`, meta.error_subcode && `subcod ${meta.error_subcode}`].filter(Boolean);
-    throw new Error(details.join(' · ') || `Meta API: HTTP ${response.status}.`);
-  }
-  return body;
+  return fetchMetaJson(url);
 }
 
 async function allPages(path, params) {
@@ -32,9 +65,7 @@ async function allPages(path, params) {
   while (true) {
     rows.push(...(body.data || []));
     if (!body.paging?.next) return rows;
-    const response = await fetch(body.paging.next);
-    body = await response.json();
-    if (!response.ok || body.error) throw new Error(body.error?.message || 'Eroare la paginarea Meta API.');
+    body = await fetchMetaJson(body.paging.next);
   }
 }
 
