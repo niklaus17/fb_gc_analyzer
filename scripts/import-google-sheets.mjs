@@ -64,6 +64,25 @@ async function fetchSheet(config, sheet) {
   return body.rows || [];
 }
 
+function normalizeKey(key) {
+  return String(key || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\uFEFF/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+}
+function normalizedRow(row) {
+  const aliases = {
+    user_email: 'email',
+    number: 'order_number',
+    data_crearii: 'created_at',
+    comanda_detalii: 'product_name',
+    cost_money: 'cost_amount',
+    payed_money: 'paid_amount',
+  };
+  const result = {};
+  for (const [key, value] of Object.entries(row || {})) {
+    const normalized = normalizeKey(key);
+    result[aliases[normalized] || normalized] = value;
+  }
+  return result;
+}
 function value(row, key) {
   const result = row[key];
   return result == null ? '' : String(result).trim();
@@ -74,7 +93,13 @@ function num(row, key) {
 }
 function nullableDate(value) {
   const text = String(value || '').trim();
-  return text ? text : null;
+  if (!text) return null;
+  const eu = text.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (eu) {
+    const [, d, m, y, hh = '00', mm = '00', ss = '00'] = eu;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')} ${hh.padStart(2, '0')}:${mm}:${ss}`;
+  }
+  return text;
 }
 
 async function importAccounts(client, rows) {
@@ -139,9 +164,10 @@ async function importMetaDaily(client, rows) {
 }
 async function importGcLeads(client, rows) {
   let count = 0;
-  for (const row of rows) {
+  for (const raw of rows) {
+    const row = normalizedRow(raw);
     const email = value(row, 'email').toLowerCase();
-    const number = value(row, 'gc_order_number') || [email, value(row, 'created_at'), value(row, 'utm_campaign'), value(row, 'utm_content'), value(row, 'utm_term')].join('|');
+    const number = value(row, 'gc_order_number') || value(row, 'order_number') || [email, value(row, 'created_at'), value(row, 'utm_campaign'), value(row, 'utm_content'), value(row, 'utm_term')].join('|');
     if (!email || !number) continue;
     await client.query(`INSERT INTO gc_leads(email,gc_order_number,created_at,lead_date,product_name,utm_source,utm_medium,utm_campaign,utm_content,utm_term,imported_at)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now()) ON CONFLICT(gc_order_number) DO UPDATE SET email=EXCLUDED.email,created_at=EXCLUDED.created_at,
@@ -154,7 +180,8 @@ async function importGcLeads(client, rows) {
 }
 async function importGcOrders(client, rows) {
   let count = 0;
-  for (const row of rows) {
+  for (const raw of rows) {
+    const row = normalizedRow(raw);
     const email = value(row, 'email').toLowerCase(), number = value(row, 'order_number');
     if (!email || !number) continue;
     await client.query(`INSERT INTO gc_orders(order_number,email,status,positions,cost_amount,paid_amount,currency,created_at,imported_at)
@@ -167,7 +194,8 @@ async function importGcOrders(client, rows) {
 }
 async function importEvents(client, eventType, rows) {
   let count = 0;
-  for (const row of rows) {
+  for (const raw of rows) {
+    const row = normalizedRow(raw);
     const email = value(row, 'email').toLowerCase();
     if (!email) continue;
     await client.query(`INSERT INTO gc_events(email,event_type,imported_at) VALUES($1,$2,now())
@@ -180,8 +208,26 @@ async function importEvents(client, eventType, rows) {
 async function main() {
   const config = parseLocalConfig(await readFile('config.local.js', 'utf8'));
   const client = await pool.connect();
+  let runId = null;
   try {
     await client.query('BEGIN');
+    await client.query(`CREATE TABLE IF NOT EXISTS google_import_runs (
+      id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      status text NOT NULL CHECK (status IN ('running','succeeded','failed')),
+      error_message text,
+      started_at timestamptz NOT NULL DEFAULT now(),
+      finished_at timestamptz
+    )`);
+    await client.query(`CREATE TABLE IF NOT EXISTS google_import_sheet_runs (
+      run_id bigint NOT NULL REFERENCES google_import_runs(id) ON DELETE CASCADE,
+      sheet_name text NOT NULL,
+      rows_read integer NOT NULL DEFAULT 0,
+      rows_imported integer NOT NULL DEFAULT 0,
+      imported_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY (run_id, sheet_name)
+    )`);
+    const runResult = await client.query("INSERT INTO google_import_runs(status) VALUES('running') RETURNING id");
+    runId = runResult.rows[0].id;
     const order = ['ad_accounts', 'campaigns', 'adsets', 'ads', 'meta_daily', 'gc_leads', 'gc_orders', 'gc_orders_paid', ...Object.keys(EVENT_SHEETS)];
     for (const sheet of order) {
       const rows = await fetchSheet(config, sheet);
@@ -194,11 +240,17 @@ async function main() {
       else if (sheet === 'gc_leads') imported = await importGcLeads(client, rows);
       else if (sheet === 'gc_orders' || sheet === 'gc_orders_paid') imported = await importGcOrders(client, rows);
       else if (EVENT_SHEETS[sheet]) imported = await importEvents(client, EVENT_SHEETS[sheet], rows);
-      console.log(`${sheet}: ${imported} rânduri importate`);
+      await client.query(`INSERT INTO google_import_sheet_runs(run_id,sheet_name,rows_read,rows_imported) VALUES($1,$2,$3,$4)
+        ON CONFLICT(run_id,sheet_name) DO UPDATE SET rows_read=EXCLUDED.rows_read,rows_imported=EXCLUDED.rows_imported,imported_at=now()`, [runId, sheet, rows.length, imported]);
+      console.log(`${sheet}: ${imported} din ${rows.length} rânduri importate`);
     }
+    await client.query("UPDATE google_import_runs SET status='succeeded',finished_at=now() WHERE id=$1", [runId]);
     await client.query('COMMIT');
   } catch (error) {
-    await client.query('ROLLBACK');
+    try {
+      await client.query("UPDATE google_import_runs SET status='failed',error_message=$1,finished_at=now() WHERE id=$2", [error.message, runId]);
+      await client.query('COMMIT');
+    } catch { await client.query('ROLLBACK'); }
     throw error;
   } finally {
     client.release();

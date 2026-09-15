@@ -87,17 +87,7 @@ app.get('/api/report', async (request, response) => {
   LEFT JOIN event_stats ON event_stats.email=lead_base.email
   GROUP BY COALESCE(utm_campaign,''),COALESCE(utm_content,''),COALESCE(utm_term,'')`, [from, to]);
   const gcByPath = new Map(gcRows.rows.map((row) => [[row.campaign_name,row.adset_name,row.ad_name].join('||'), row]));
-  const gcOnlyAccountId = 'getcourse';
-  if (gcByPath.size && !accounts.some((account) => account.id === gcOnlyAccountId)) {
-    accounts.push({
-      id: gcOnlyAccountId,
-      portfolioId: 'getcourse',
-      name: 'GetCourse',
-      originalName: 'GetCourse',
-      currency: accounts[0]?.currency || 'USD',
-    });
-    if (!portfolios.some((portfolio) => portfolio.id === 'getcourse')) portfolios.push({ id: 'getcourse', name: 'GetCourse' });
-  }
+
 
   const gcAgeRows = await pool.query(`WITH lead_base AS (
     SELECT lower(email) AS email, COALESCE(lead_date, created_at::date) AS lead_date, utm_campaign, utm_content, utm_term
@@ -199,38 +189,7 @@ app.get('/api/report', async (request, response) => {
       '45_plus': Number(gcByPath.get(pathKey)?.age_45_plus || 0),
     });
   }
-  for (const [pathKey, gcRow] of gcByPath.entries()) {
-    if (pathsFromMeta.has(pathKey)) continue;
-    const [campaignName, adsetName, adName] = pathKey.split('||');
-    if (!campaignName && !adsetName && !adName) continue;
-    const campaignId = 'gc:campaign:' + campaignName;
-    const adsetId = 'gc:adset:' + campaignName + '||' + adsetName;
-    const adId = 'gc:ad:' + pathKey;
-    if (!campaignMap.has(campaignId)) campaignMap.set(campaignId, {
-      id: campaignId, accountId: gcOnlyAccountId, name: campaignName || 'Fără campanie', children: [], adsets: new Map(),
-    });
-    const campaign = campaignMap.get(campaignId);
-    if (!campaign.adsets.has(adsetId)) campaign.adsets.set(adsetId, {
-      id: adsetId, accountId: gcOnlyAccountId, name: adsetName || 'Fără adset', children: [],
-    });
-    campaign.adsets.get(adsetId).children.push({
-      id: adId, accountId: gcOnlyAccountId, name: adName || 'Fără creative', spend: 0,
-      ageBreakdown: gcAgeByPath.get(pathKey) || {},
-      leadsFb: 0, leadsGc: Number(gcRow.leads_gc || 0),
-      l1in: Number(gcRow.l1in || 0),
-      l1sent: Number(gcRow.l1sent || 0),
-      graduates: Number(gcRow.graduates || 0),
-      orders: Number(gcRow.orders || 0),
-      paid: Number(gcRow.paid || 0),
-      revenue: Number(gcRow.revenue || 0),
-      sub_18: Number(gcRow.sub_18 || 0),
-      '18_21': Number(gcRow.age_18_21 || 0),
-      '22_24': Number(gcRow.age_22_24 || 0),
-      '25_34': Number(gcRow.age_25_34 || 0),
-      '35_44': Number(gcRow.age_35_44 || 0),
-      '45_plus': Number(gcRow.age_45_plus || 0),
-    });
-  }
+
 
   const campaigns = [...campaignMap.values()].map(({ adsets, ...campaign }) => ({
     ...campaign,
@@ -261,25 +220,38 @@ app.post('/api/gc/import/:kind', async (request, response) => {
 app.get('/api/gc/data', async (request, response) => {
   const type = request.query.type || 'paid_orders';
   const search = String(request.query.search || '').trim().toLowerCase();
-  const limit = Math.min(Number(request.query.limit || 100), 500);
+  const limit = Math.min(Math.max(Number(request.query.limit || 100), 1), 100);
+  const offset = Math.max(Number(request.query.offset || 0), 0);
   const like = '%' + search + '%';
   try {
     let result, countResult;
     if (type === 'leads') {
       result = await pool.query(`SELECT email,gc_order_number AS number,COALESCE(lead_date::text,created_at::date::text) AS date,product_name,utm_campaign,utm_content,utm_term
-        FROM gc_leads WHERE $1='' OR lower(email) LIKE $2 ORDER BY COALESCE(lead_date,created_at::date) DESC NULLS LAST LIMIT $3`, [search, like, limit]);
+        FROM gc_leads WHERE $1='' OR lower(email) LIKE $2 ORDER BY COALESCE(lead_date,created_at::date) DESC NULLS LAST LIMIT $3 OFFSET $4`, [search, like, limit, offset]);
       countResult = await pool.query(`SELECT COUNT(*)::int AS total FROM gc_leads WHERE $1='' OR lower(email) LIKE $2`, [search, like]);
     } else if (type === 'orders' || type === 'paid_orders') {
       const paidOnly = type === 'paid_orders';
       result = await pool.query(`SELECT email,order_number AS number,status,positions,cost_amount::float AS cost,paid_amount::float AS paid,currency,created_at::text AS date
-        FROM gc_orders WHERE ($1='' OR lower(email) LIKE $2) AND ($4=false OR paid_amount>0 OR lower(status) LIKE '%finalizat%') ORDER BY created_at DESC NULLS LAST LIMIT $3`, [search, like, limit, paidOnly]);
+        FROM gc_orders WHERE ($1='' OR lower(email) LIKE $2) AND ($4=false OR paid_amount>0 OR lower(status) LIKE '%finalizat%') ORDER BY created_at DESC NULLS LAST LIMIT $3 OFFSET $5`, [search, like, limit, paidOnly, offset]);
       countResult = await pool.query(`SELECT COUNT(*)::int AS total FROM gc_orders WHERE ($1='' OR lower(email) LIKE $2) AND ($3=false OR paid_amount>0 OR lower(status) LIKE '%finalizat%')`, [search, like, paidOnly]);
     } else {
       result = await pool.query(`SELECT email,event_type AS type,imported_at::text AS date FROM gc_events
-        WHERE event_type=$1 AND ($2='' OR lower(email) LIKE $3) ORDER BY imported_at DESC LIMIT $4`, [type, search, like, limit]);
+        WHERE event_type=$1 AND ($2='' OR lower(email) LIKE $3) ORDER BY imported_at DESC LIMIT $4 OFFSET $5`, [type, search, like, limit, offset]);
       countResult = await pool.query(`SELECT COUNT(*)::int AS total FROM gc_events WHERE event_type=$1 AND ($2='' OR lower(email) LIKE $3)`, [type, search, like]);
     }
-    response.json({ ok: true, type, total: countResult.rows[0]?.total || 0, rows: result.rows });
+    response.json({ ok: true, type, total: countResult.rows[0]?.total || 0, limit, offset, rows: result.rows });
+  } catch (error) { response.status(400).json({ error: error.message }); }
+});
+
+
+app.get('/api/google/imports/latest', async (_request, response) => {
+  try {
+    const run = await pool.query(`SELECT id,status,error_message,started_at::text AS started_at,finished_at::text AS finished_at
+      FROM google_import_runs ORDER BY started_at DESC LIMIT 1`);
+    if (!run.rows[0]) return response.json(null);
+    const sheets = await pool.query(`SELECT sheet_name,rows_read,rows_imported,imported_at::text AS imported_at
+      FROM google_import_sheet_runs WHERE run_id=$1 ORDER BY sheet_name`, [run.rows[0].id]);
+    response.json({ ...run.rows[0], sheets: sheets.rows });
   } catch (error) { response.status(400).json({ error: error.message }); }
 });
 

@@ -753,6 +753,8 @@ $("picker-to").addEventListener("change", (e) => {
 $("nav-dashboard").onclick = () => showPage("dashboard");
 $("nav-data").onclick = () => showPage("data");
 let pendingGcImport = null;
+let gcDataPage = 0;
+const gcDataPageSize = 100;
 async function previewGetCourseFile(input, kind) {
   const file = input.files?.[0];
   if (!file || !kind) return;
@@ -816,32 +818,53 @@ $("gc-import-preview").addEventListener("click", async (event) => {
     catch (error) { $("gc-import-status").textContent = error.message; }
   }
 });
-async function loadGcData() {
+async function loadGcData(page = gcDataPage) {
+  gcDataPage = Math.max(page, 0);
   const type = $("gc-data-type").value;
   const search = $("gc-data-search").value.trim();
   const status = $("gc-data-status");
   status.textContent = "Se încarcă datele...";
   try {
-    const params = new URLSearchParams({ type, search });
+    const params = new URLSearchParams({ type, search, limit: String(gcDataPageSize), offset: String(gcDataPage * gcDataPageSize) });
     const response = await fetch("/api/gc/data?" + params.toString());
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Nu pot încărca datele.");
     const rows = result.rows || [];
+    const total = Number(result.total || 0);
     const keys = rows.length ? Object.keys(rows[0]) : ["email", "date"];
     $("gc-data-head").innerHTML = `<tr>${keys.map((key) => `<th>${key}</th>`).join("")}</tr>`;
     $("gc-data-body").innerHTML = rows.length
       ? rows.map((row) => `<tr>${keys.map((key) => `<td>${row[key] ?? ""}</td>`).join("")}</tr>`).join("")
       : `<tr><td class="empty" colspan="${keys.length}">Nu există date pentru filtrul ales.</td></tr>`;
-    status.textContent = Number.isFinite(Number(result.total))
-      ? rows.length + " din " + result.total + " rânduri afișate."
-      : rows.length + " rânduri afișate. Totalul lipsește — repornește serverul local pentru noul API.";
+    const start = total && rows.length ? gcDataPage * gcDataPageSize + 1 : 0;
+    const end = gcDataPage * gcDataPageSize + rows.length;
+    const pages = Math.max(Math.ceil(total / gcDataPageSize), 1);
+    $("gc-data-page").textContent = `Pagina ${gcDataPage + 1} din ${pages}`;
+    $("gc-data-prev").disabled = gcDataPage === 0;
+    $("gc-data-next").disabled = end >= total;
+    status.textContent = total ? `${start}–${end} din ${total} rânduri afișate.` : "0 rânduri afișate.";
   } catch (error) {
     status.textContent = error.message;
   }
 }
-$("gc-data-refresh").onclick = () => loadGcData();
-$("gc-data-type").addEventListener("change", () => loadGcData());
-$("gc-data-search").addEventListener("keydown", (event) => { if (event.key === "Enter") loadGcData(); });
+async function loadGoogleImportStatus() {
+  if (!$("google-import-status")) return;
+  try {
+    const response = await fetch("/api/google/imports/latest");
+    const result = await response.json();
+    if (!result) { $("google-import-status").textContent = "Ultimul import Google Sheets: nu există încă."; return; }
+    const details = (result.sheets || []).map((s) => `${s.sheet_name}: ${s.rows_imported}/${s.rows_read}`).join(" · ");
+    $("google-import-status").textContent = `Ultimul import Google Sheets: ${result.status} · ${result.finished_at || result.started_at}${details ? " · " + details : ""}`;
+  } catch {
+    $("google-import-status").textContent = "Ultimul import Google Sheets: nu poate fi citit.";
+  }
+}
+$("gc-data-refresh").onclick = () => loadGcData(0);
+$("gc-data-prev").onclick = () => loadGcData(gcDataPage - 1);
+$("gc-data-next").onclick = () => loadGcData(gcDataPage + 1);
+$("gc-data-type").addEventListener("change", () => loadGcData(0));
+$("gc-data-search").addEventListener("keydown", (event) => { if (event.key === "Enter") loadGcData(0); });
+loadGoogleImportStatus();
 $("sync-meta").addEventListener("click", async () => {
   const button = $("sync-meta"),
     status = $("sync-status");

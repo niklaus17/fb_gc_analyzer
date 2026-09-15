@@ -116,6 +116,23 @@ CREATE TABLE IF NOT EXISTS entity_tags (
   PRIMARY KEY (entity_type, entity_id, tag)
 );
 
+CREATE TABLE IF NOT EXISTS google_import_runs (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  status text NOT NULL CHECK (status IN ('running','succeeded','failed')),
+  error_message text,
+  started_at timestamptz NOT NULL DEFAULT now(),
+  finished_at timestamptz
+);
+
+CREATE TABLE IF NOT EXISTS google_import_sheet_runs (
+  run_id bigint NOT NULL REFERENCES google_import_runs(id) ON DELETE CASCADE,
+  sheet_name text NOT NULL,
+  rows_read integer NOT NULL DEFAULT 0,
+  rows_imported integer NOT NULL DEFAULT 0,
+  imported_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (run_id, sheet_name)
+);
+
 CREATE TABLE IF NOT EXISTS sync_runs (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   source text NOT NULL DEFAULT 'meta',
