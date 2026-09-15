@@ -25,7 +25,6 @@ const columns = [
 ];
 const PREF_KEY = "campaignsheet.preferences.v2";
 const LEGACY_PREF_KEY = "campaignsheet.preferences";
-const GOOGLE_TOKEN_KEY = "campaignsheet.googleApiToken";
 const ageKeys = ["sub_18", "18_21", "22_24", "25_34", "35_44", "45_plus"];
 const defaultVisibleColumns = [
   "spend",
@@ -76,13 +75,9 @@ const visible = new Set(defaultVisibleColumns);
 let tagFilter = "all";
 const appSettings = {
   dataSource: "local",
-  googleApiUrl: "",
-  googleApiToken: localStorage.getItem(GOOGLE_TOKEN_KEY) || "",
   defaultCurrency: "USD",
   allTimeFrom: "2026-01-01",
-  ...(globalThis.CAMPAIGNSHEET_CONFIG || {}),
 };
-if (!appSettings.googleApiToken) appSettings.googleApiToken = localStorage.getItem(GOOGLE_TOKEN_KEY) || "";
 let currency = appSettings.defaultCurrency;
 let dateFrom = "",
   dateTo = "";
@@ -185,11 +180,6 @@ function savePreferences() {
 }
 function isLocalHost() {
   return ["localhost", "127.0.0.1", ""].includes(location.hostname);
-}
-function isGoogleDataSource() {
-  if (appSettings.dataSource === "google") return true;
-  if (appSettings.dataSource === "auto") return !isLocalHost();
-  return false;
 }
 function clearSavedPreferences() {
   savedPreferences = {};
@@ -763,11 +753,6 @@ $("picker-to").addEventListener("change", (e) => {
 $("nav-dashboard").onclick = () => showPage("dashboard");
 $("nav-data").onclick = () => showPage("data");
 let pendingGcImport = null;
-function googleEndpoint(action, extra = {}) {
-  const params = new URLSearchParams({ action, ...extra });
-  if (appSettings.googleApiToken) params.set("token", appSettings.googleApiToken);
-  return appSettings.googleApiUrl + "?" + params.toString();
-}
 async function previewGetCourseFile(input, kind) {
   const file = input.files?.[0];
   if (!file || !kind) return;
@@ -778,13 +763,6 @@ async function previewGetCourseFile(input, kind) {
   try {
     const text = await file.text();
     pendingGcImport = { kind, text, fileName: file.name };
-    if (isGoogleDataSource() && appSettings.googleApiUrl) {
-      if (!appSettings.googleApiToken) { showLogin("Introdu tokenul înainte de import."); status.textContent = "Conectează dashboardul înainte de import."; return; }
-      preview.innerHTML = `<strong>Import Google Sheets: ${file.name}</strong><p>Fișierul va fi trimis în Apps Script la tipul <b>${kind}</b>. Preview-ul detaliat este disponibil doar în modul local.</p><div class="preview-actions"><button id="gc-confirm-import" class="primary" type="button">Confirmă importul</button><button id="gc-cancel-import" type="button">Anulează</button></div>`;
-      preview.classList.remove("hidden");
-      status.textContent = "Confirmă importul în Google Sheets.";
-      return;
-    }
     const response = await fetch("/api/gc/preview/" + kind, {
       method: "POST",
       headers: { "Content-Type": "text/csv" },
@@ -806,14 +784,7 @@ async function confirmGetCourseImport() {
   if (!pendingGcImport) return;
   const status = $("gc-import-status");
   status.textContent = "Import " + pendingGcImport.fileName + "...";
-  if (isGoogleDataSource() && appSettings.googleApiUrl && !appSettings.googleApiToken) {
-    showLogin("Introdu tokenul înainte de import.");
-    status.textContent = "Conectează dashboardul înainte de import.";
-    return;
-  }
-  const endpoint = isGoogleDataSource() && appSettings.googleApiUrl
-    ? googleEndpoint("gcImport", { kind: pendingGcImport.kind })
-    : "/api/gc/import/" + pendingGcImport.kind;
+  const endpoint = "/api/gc/import/" + pendingGcImport.kind;
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "text/csv" },
@@ -985,30 +956,8 @@ preferencesReady = true;
 renderDateButton();
 render();
 
-function needsGoogleLogin() {
-  return isGoogleDataSource() && appSettings.googleApiUrl && !appSettings.googleApiToken;
-}
-function showLogin(message = "") {
-  if (!$('login-dialog')) return;
-  $('login-error').textContent = message;
-  $('login-token').value = "";
-  $('login-dialog').showModal();
-  setTimeout(() => $('login-token')?.focus(), 50);
-}
-function setGoogleToken(token) {
-  appSettings.googleApiToken = token.trim();
-  localStorage.setItem(GOOGLE_TOKEN_KEY, appSettings.googleApiToken);
-}
 function reportEndpoint() {
-  const params = new URLSearchParams({ from: dateFrom, to: dateTo });
-  if (isGoogleDataSource() && appSettings.googleApiUrl) {
-    if (!appSettings.googleApiToken) return "";
-    params.set("action", "report");
-    if (appSettings.googleApiToken) params.set("token", appSettings.googleApiToken);
-    return appSettings.googleApiUrl + "?" + params.toString();
-  }
-  if (location.protocol === "file:" || location.hostname.endsWith("github.io")) return "";
-  return "/api/report?" + params.toString();
+  return "/api/report?" + new URLSearchParams({ from: dateFrom, to: dateTo }).toString();
 }
 
 function normalizeReportData(report) {
@@ -1083,30 +1032,6 @@ async function loadReport() {
   savePreferences();
 }
 
-if ($('login-form')) {
-  $('login-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const token = $('login-token').value.trim();
-    if (!token) { $('login-error').textContent = 'Introdu tokenul de acces.'; return; }
-    const previousToken = appSettings.googleApiToken;
-    setGoogleToken(token);
-    $('login-error').textContent = 'Verific tokenul...';
-    try {
-      const report = await fetchReportJson();
-      $('login-dialog').close();
-      normalizeReportData(report);
-      allNodes = campaigns.flatMap((c) => [c, ...c.children.flatMap((a) => [a, ...a.children])]);
-      restorePreferencesForCurrentData();
-      render();
-      savePreferences();
-    } catch (error) {
-      appSettings.googleApiToken = previousToken;
-      if (previousToken) localStorage.setItem(GOOGLE_TOKEN_KEY, previousToken);
-      else localStorage.removeItem(GOOGLE_TOKEN_KEY);
-      $('login-error').textContent = error.message || 'Tokenul nu a fost acceptat.';
-    }
-  });
-}
 loadReport().catch(() => {});
 if (document.modelContext?.registerTool) {
   try {

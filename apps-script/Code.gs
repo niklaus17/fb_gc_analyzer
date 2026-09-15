@@ -68,6 +68,7 @@ function doGet(e) {
     const action = e.parameter.action || 'report';
     if (action === 'report') return json_(buildReport_(e.parameter.from, e.parameter.to));
     if (action === 'schema') return json_({ ok: true, sheets: SHEETS });
+    if (action === 'exportSheet') return json_(exportSheet_(e.parameter.sheet));
     return json_({ ok: false, error: 'Unknown action' }, 400);
   } catch (error) {
     return json_({ ok: false, error: error.message }, 400);
@@ -246,6 +247,11 @@ function addLead_(target, lead, eventsByEmail, ordersByEmail) {
   });
 }
 
+
+function exportSheet_(sheetName) {
+  if (!SHEETS[sheetName]) throw new Error('Unknown sheet: ' + sheetName);
+  return { ok: true, sheet: sheetName, headers: SHEETS[sheetName], rows: rows_(sheetName) };
+}
 
 function importSheet_(sheetName, body, mode) {
   if (!SHEETS[sheetName]) throw new Error('Unknown sheet: ' + sheetName);
