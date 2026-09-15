@@ -25,6 +25,7 @@ const columns = [
 ];
 const PREF_KEY = "campaignsheet.preferences.v2";
 const LEGACY_PREF_KEY = "campaignsheet.preferences";
+const GOOGLE_TOKEN_KEY = "campaignsheet.googleApiToken";
 const ageKeys = ["sub_18", "18_21", "22_24", "25_34", "35_44", "45_plus"];
 const defaultVisibleColumns = [
   "spend",
@@ -76,11 +77,12 @@ let tagFilter = "all";
 const appSettings = {
   dataSource: "local",
   googleApiUrl: "",
-  googleApiToken: "",
+  googleApiToken: localStorage.getItem(GOOGLE_TOKEN_KEY) || "",
   defaultCurrency: "USD",
   allTimeFrom: "2026-01-01",
   ...(globalThis.CAMPAIGNSHEET_CONFIG || {}),
 };
+if (!appSettings.googleApiToken) appSettings.googleApiToken = localStorage.getItem(GOOGLE_TOKEN_KEY) || "";
 let currency = appSettings.defaultCurrency;
 let dateFrom = "",
   dateTo = "";
@@ -777,6 +779,7 @@ async function previewGetCourseFile(input, kind) {
     const text = await file.text();
     pendingGcImport = { kind, text, fileName: file.name };
     if (isGoogleDataSource() && appSettings.googleApiUrl) {
+      if (!appSettings.googleApiToken) { showLogin("Introdu tokenul înainte de import."); status.textContent = "Conectează dashboardul înainte de import."; return; }
       preview.innerHTML = `<strong>Import Google Sheets: ${file.name}</strong><p>Fișierul va fi trimis în Apps Script la tipul <b>${kind}</b>. Preview-ul detaliat este disponibil doar în modul local.</p><div class="preview-actions"><button id="gc-confirm-import" class="primary" type="button">Confirmă importul</button><button id="gc-cancel-import" type="button">Anulează</button></div>`;
       preview.classList.remove("hidden");
       status.textContent = "Confirmă importul în Google Sheets.";
@@ -803,6 +806,11 @@ async function confirmGetCourseImport() {
   if (!pendingGcImport) return;
   const status = $("gc-import-status");
   status.textContent = "Import " + pendingGcImport.fileName + "...";
+  if (isGoogleDataSource() && appSettings.googleApiUrl && !appSettings.googleApiToken) {
+    showLogin("Introdu tokenul înainte de import.");
+    status.textContent = "Conectează dashboardul înainte de import.";
+    return;
+  }
   const endpoint = isGoogleDataSource() && appSettings.googleApiUrl
     ? googleEndpoint("gcImport", { kind: pendingGcImport.kind })
     : "/api/gc/import/" + pendingGcImport.kind;
@@ -976,9 +984,25 @@ restorePreferencesForCurrentData({ initial: true, restoreDate: true });
 preferencesReady = true;
 renderDateButton();
 render();
+
+function needsGoogleLogin() {
+  return isGoogleDataSource() && appSettings.googleApiUrl && !appSettings.googleApiToken;
+}
+function showLogin(message = "") {
+  if (!$('login-dialog')) return;
+  $('login-error').textContent = message;
+  $('login-token').value = "";
+  $('login-dialog').showModal();
+  setTimeout(() => $('login-token')?.focus(), 50);
+}
+function setGoogleToken(token) {
+  appSettings.googleApiToken = token.trim();
+  localStorage.setItem(GOOGLE_TOKEN_KEY, appSettings.googleApiToken);
+}
 function reportEndpoint() {
   const params = new URLSearchParams({ from: dateFrom, to: dateTo });
   if (isGoogleDataSource() && appSettings.googleApiUrl) {
+    if (!appSettings.googleApiToken) return "";
     params.set("action", "report");
     if (appSettings.googleApiToken) params.set("token", appSettings.googleApiToken);
     return appSettings.googleApiUrl + "?" + params.toString();
@@ -1010,10 +1034,18 @@ function normalizeReportData(report) {
   }
 }
 async function loadReport() {
+  if (needsGoogleLogin()) { showLogin(); return; }
   const endpoint = reportEndpoint();
   if (!endpoint) return;
   const response = await fetch(endpoint);
-  if (!response.ok) return;
+  if (!response.ok) {
+    if (isGoogleDataSource() && (response.status === 400 || response.status === 401 || response.status === 403)) {
+      localStorage.removeItem(GOOGLE_TOKEN_KEY);
+      appSettings.googleApiToken = "";
+      showLogin("Tokenul nu a fost acceptat. Verifică tokenul și încearcă din nou.");
+    }
+    return;
+  }
   const report = await response.json();
   normalizeReportData(report);
   allNodes = campaigns.flatMap((c) => [
@@ -1023,6 +1055,17 @@ async function loadReport() {
   restorePreferencesForCurrentData();
   render();
   savePreferences();
+}
+
+if ($('login-form')) {
+  $('login-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const token = $('login-token').value.trim();
+    if (!token) { $('login-error').textContent = 'Introdu tokenul de acces.'; return; }
+    setGoogleToken(token);
+    $('login-dialog').close();
+    await loadReport();
+  });
 }
 loadReport().catch(() => {});
 if (document.modelContext?.registerTool) {

@@ -8,7 +8,12 @@
     <title>Campaigns — Analiză campanii</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="sync.css">
-    <script src="config.local.js"></script>
+    <script src="config.js"></script>
+    <script>
+        if (["localhost", "127.0.0.1", ""].includes(location.hostname)) {
+            document.write('<script src="config.local.js"><\/script>');
+        }
+    </script>
     <script defer src="app.js"></script>
 </head>
 
@@ -243,6 +248,17 @@
             <p>Totalurile folosesc sumele datelor de bază, apoi recalculează costurile și ratele; nu fac media ratelor
                 din rânduri.</p>
         </div>
+    </dialog>
+
+    <dialog id="login-dialog" class="modal small-modal">
+        <form method="dialog" id="login-form">
+            <button class="close" type="button" aria-label="Închide">×</button>
+            <h2>Conectare dashboard</h2>
+            <p>Introdu tokenul privat pentru a citi datele din Google Sheets. Tokenul se salvează doar în acest browser.</p>
+            <label class="login-field"><span>Token acces</span><input id="login-token" type="password" autocomplete="current-password" required></label>
+            <p id="login-error" class="login-error" role="alert"></p>
+            <div class="dialog-actions"><button id="login-submit" class="primary" type="submit">Conectează</button></div>
+        </form>
     </dialog>
 </body>
 
