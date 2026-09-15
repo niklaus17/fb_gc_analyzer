@@ -10,3 +10,4 @@ node_modules/
 *.xls
 *.dump
 *.backup
+config.local.js

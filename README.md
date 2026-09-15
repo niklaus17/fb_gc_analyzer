@@ -52,3 +52,29 @@ Pagina GitHub Pages poate afișa interfața statică, dar importurile și datele
 node --check app.js
 npm test
 ```
+
+## Mod Google Sheets + Apps Script
+
+Dashboardul poate rula și fără server Node/PostgreSQL, folosind GitHub Pages pentru interfață și Google Sheets + Apps Script pentru date.
+
+1. Creează un Google Sheet nou.
+2. Copiază `apps-script/Code.gs` în Extensions → Apps Script.
+3. Schimbă `APP_TOKEN` în Apps Script.
+4. Rulează `setup()` în Apps Script pentru a crea taburile.
+5. Deploy ca Web App și copiază URL-ul `/exec`.
+6. Copiază `config.example.js` în `config.local.js` și completează URL-ul + tokenul.
+7. Pentru GitHub Pages, adaugă un `config.local.js` echivalent înainte de publicare sau setează valorile direct în build-ul static.
+
+În modul Google, dashboardul citește raportul din:
+
+```text
+?action=report&from=YYYY-MM-DD&to=YYYY-MM-DD&token=...
+```
+
+Iar importurile GetCourse pot fi trimise în Apps Script cu:
+
+```text
+?action=gcImport&kind=leads&token=...
+?action=gcImport&kind=orders&token=...
+?action=gcImport&kind=l1sent&token=...
+```

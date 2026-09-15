@@ -74,8 +74,12 @@ const entityExpanded = new Set();
 const visible = new Set(defaultVisibleColumns);
 let tagFilter = "all";
 const appSettings = {
+  dataSource: "local",
+  googleApiUrl: "",
+  googleApiToken: "",
   defaultCurrency: "USD",
   allTimeFrom: "2026-01-01",
+  ...(globalThis.CAMPAIGNSHEET_CONFIG || {}),
 };
 let currency = appSettings.defaultCurrency;
 let dateFrom = "",
@@ -746,6 +750,11 @@ $("picker-to").addEventListener("change", (e) => {
 $("nav-dashboard").onclick = () => showPage("dashboard");
 $("nav-data").onclick = () => showPage("data");
 let pendingGcImport = null;
+function googleEndpoint(action, extra = {}) {
+  const params = new URLSearchParams({ action, ...extra });
+  if (appSettings.googleApiToken) params.set("token", appSettings.googleApiToken);
+  return appSettings.googleApiUrl + "?" + params.toString();
+}
 async function previewGetCourseFile(input, kind) {
   const file = input.files?.[0];
   if (!file || !kind) return;
@@ -755,6 +764,13 @@ async function previewGetCourseFile(input, kind) {
   preview.classList.add("hidden");
   try {
     const text = await file.text();
+    pendingGcImport = { kind, text, fileName: file.name };
+    if (appSettings.dataSource === "google" && appSettings.googleApiUrl) {
+      preview.innerHTML = `<strong>Import Google Sheets: ${file.name}</strong><p>Fișierul va fi trimis în Apps Script la tipul <b>${kind}</b>. Preview-ul detaliat este disponibil doar în modul local.</p><div class="preview-actions"><button id="gc-confirm-import" class="primary" type="button">Confirmă importul</button><button id="gc-cancel-import" type="button">Anulează</button></div>`;
+      preview.classList.remove("hidden");
+      status.textContent = "Confirmă importul în Google Sheets.";
+      return;
+    }
     const response = await fetch("/api/gc/preview/" + kind, {
       method: "POST",
       headers: { "Content-Type": "text/csv" },
@@ -762,7 +778,6 @@ async function previewGetCourseFile(input, kind) {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Preview-ul a eșuat.");
-    pendingGcImport = { kind, text, fileName: file.name };
     const p = result.preview;
     preview.innerHTML = `<strong>Preview import: ${file.name}</strong><div class="preview-grid"><span>Total: <b>${p.total}</b></span><span>Valide: <b>${p.valid}</b></span><span>Noi: <b>${p.new}</b></span><span>Actualizări: <b>${p.existing}</b></span><span>Duplicate în fișier: <b>${p.duplicatesInFile}</b></span><span>Ignorate: <b>${p.invalid + p.cancelled}</b></span>${kind === "orders" ? `<span>Comenzi plătite: <b>${p.paidOrders}</b></span><span>Clienți plătiți: <b>${p.paidCustomers}</b></span><span>Venit: <b>${decimal.format(p.revenue)}</b></span>` : ""}</div><div class="preview-actions"><button id="gc-confirm-import" class="primary" type="button">Confirmă importul</button><button id="gc-cancel-import" type="button">Anulează</button></div>`;
     preview.classList.remove("hidden");
@@ -777,7 +792,10 @@ async function confirmGetCourseImport() {
   if (!pendingGcImport) return;
   const status = $("gc-import-status");
   status.textContent = "Import " + pendingGcImport.fileName + "...";
-  const response = await fetch("/api/gc/import/" + pendingGcImport.kind, {
+  const endpoint = appSettings.dataSource === "google" && appSettings.googleApiUrl
+    ? googleEndpoint("gcImport", { kind: pendingGcImport.kind })
+    : "/api/gc/import/" + pendingGcImport.kind;
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "text/csv" },
     body: pendingGcImport.text,
@@ -947,11 +965,20 @@ restorePreferencesForCurrentData({ initial: true, restoreDate: true });
 preferencesReady = true;
 renderDateButton();
 render();
-async function loadReport() {
-  if (location.protocol === "file:" || location.hostname.endsWith("github.io"))
-    return;
+function reportEndpoint() {
   const params = new URLSearchParams({ from: dateFrom, to: dateTo });
-  const response = await fetch("/api/report?" + params.toString());
+  if (appSettings.dataSource === "google" && appSettings.googleApiUrl) {
+    params.set("action", "report");
+    if (appSettings.googleApiToken) params.set("token", appSettings.googleApiToken);
+    return appSettings.googleApiUrl + "?" + params.toString();
+  }
+  if (location.protocol === "file:" || location.hostname.endsWith("github.io")) return "";
+  return "/api/report?" + params.toString();
+}
+async function loadReport() {
+  const endpoint = reportEndpoint();
+  if (!endpoint) return;
+  const response = await fetch(endpoint);
   if (!response.ok) return;
   const report = await response.json();
   portfolios = report.portfolios || [];
