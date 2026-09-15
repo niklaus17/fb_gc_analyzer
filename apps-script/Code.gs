@@ -1,3 +1,5 @@
+const SCRIPT_VERSION = '2026-09-15-storage-v2';
+
 const SETTINGS = {
   APP_TOKEN: 'change-this-token',
   DEFAULT_CURRENCY: 'USD',
@@ -66,6 +68,7 @@ function doGet(e) {
   try {
     guard_(e);
     const action = e.parameter.action || 'report';
+    if (action === 'version') return json_({ ok: true, version: SCRIPT_VERSION });
     if (action === 'report') return json_(buildReport_(e.parameter.from, e.parameter.to));
     if (action === 'schema') return json_({ ok: true, sheets: SHEETS });
     if (action === 'exportSheet') return json_(exportSheet_(e.parameter.sheet));

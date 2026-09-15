@@ -10,7 +10,8 @@
     "test": "node tests/accounts.test.cjs && node --test tests/server.test.js",
     "google:export": "node scripts/export-google-sheets.mjs",
     "google:export:sheet": "node scripts/export-google-sheets.mjs",
-    "google:import": "node scripts/import-google-sheets.mjs"
+    "google:import": "node scripts/import-google-sheets.mjs",
+    "google:check": "node scripts/check-google-apps-script.mjs"
   },
   "dependencies": {
     "dotenv": "^17.2.2",
