@@ -310,9 +310,15 @@ function rows_(sheetName) {
   const values = sheet.getDataRange().getValues();
   if (values.length < 2) return [];
   const headers = values[0];
-  return values.slice(1).filter((row) => row.some(Boolean)).map((row) => Object.fromEntries(headers.map((header, i) => [header, row[i]])));
+  return values.slice(1).filter((row) => row.some(Boolean)).map((row) => Object.fromEntries(headers.map((header, i) => [header, normalizeCell_(row[i])])));
 }
 
+function normalizeCell_(value) {
+  if (Object.prototype.toString.call(value) === '[object Date]' && !Number.isNaN(value.getTime())) {
+    return Utilities.formatDate(value, 'UTC', 'yyyy-MM-dd');
+  }
+  return value;
+}
 function ensureSheet_(ss, name, headers) {
   const sheet = ss.getSheetByName(name) || ss.insertSheet(name);
   if (!sheet.getLastRow()) sheet.appendRow(headers);
