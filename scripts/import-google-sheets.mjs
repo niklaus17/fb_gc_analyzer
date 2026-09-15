@@ -23,17 +23,44 @@ function parseLocalConfig(text) {
   return { apiUrl, token };
 }
 
+const RETRY_DELAYS_MS = [1500, 4000, 8000];
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchJsonWithRetry(url, sheet) {
+  let lastError;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      const response = await fetch(url);
+      const text = await response.text();
+      let body;
+      try { body = JSON.parse(text); }
+      catch {
+        const error = new Error(`${sheet}: Apps Script nu a întors JSON. Răspuns HTML/invalid de la Google.`);
+        error.transient = response.status >= 400 || text.includes('ppConfig');
+        throw error;
+      }
+      if (response.ok && body.ok !== false) return body;
+      const error = new Error(`${sheet}: ${body.error || response.statusText}`);
+      error.transient = response.status >= 500;
+      throw error;
+    } catch (error) {
+      lastError = error;
+      if (!error.transient || attempt === RETRY_DELAYS_MS.length) throw error;
+      await wait(RETRY_DELAYS_MS[attempt]);
+    }
+  }
+  throw lastError;
+}
+
 async function fetchSheet(config, sheet) {
   const url = new URL(config.apiUrl);
   url.searchParams.set('action', 'exportSheet');
   url.searchParams.set('sheet', sheet);
   url.searchParams.set('token', config.token);
-  const response = await fetch(url);
-  const text = await response.text();
-  let body;
-  try { body = JSON.parse(text); }
-  catch { throw new Error(`${sheet}: Apps Script nu a întors JSON. Verifică redeploy-ul Web App /exec.`); }
-  if (!response.ok || body.ok === false) throw new Error(`${sheet}: ${body.error || response.statusText}`);
+  const body = await fetchJsonWithRetry(url, sheet);
   return body.rows || [];
 }
 
