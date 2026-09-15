@@ -113,8 +113,11 @@ function restorePreferencesForCurrentData({ initial = false, restoreDate = false
     if (valid.length && new Set(valid.map((id) => accountById(id).currency)).size <= 1) {
       selectedAccounts.clear();
       valid.forEach((id) => selectedAccounts.add(id));
+    } else if (!selectedAccounts.size || [...selectedAccounts].some((id) => !accountById(id))) {
+      selectedAccounts.clear();
     }
-  } else if (!selectedAccounts.size && accounts.length) {
+  }
+  if (!selectedAccounts.size && accounts.length) {
     const defaultCurrency = accounts[0].currency;
     accounts
       .filter((account) => account.currency === defaultCurrency)
@@ -975,15 +978,36 @@ function reportEndpoint() {
   if (location.protocol === "file:" || location.hostname.endsWith("github.io")) return "";
   return "/api/report?" + params.toString();
 }
+
+function normalizeReportData(report) {
+  portfolios = report.portfolios || [];
+  accounts = report.accounts || [];
+  campaigns = report.campaigns || [];
+  const accountIds = new Set(accounts.map((account) => account.id));
+  const inferredIds = [...new Set(campaigns.map((campaign) => campaign.accountId).filter(Boolean))]
+    .filter((id) => !accountIds.has(id));
+  for (const id of inferredIds) {
+    const isGetCourse = id === "getcourse" || id.startsWith?.("gc:");
+    const portfolioId = isGetCourse ? "getcourse" : "unknown";
+    if (!portfolios.some((portfolio) => portfolio.id === portfolioId)) {
+      portfolios.push({ id: portfolioId, name: isGetCourse ? "GetCourse" : "Fără portfolio" });
+    }
+    accounts.push({
+      id,
+      portfolioId,
+      name: isGetCourse ? "GetCourse" : id,
+      originalName: isGetCourse ? "GetCourse" : id,
+      currency: appSettings.defaultCurrency,
+    });
+  }
+}
 async function loadReport() {
   const endpoint = reportEndpoint();
   if (!endpoint) return;
   const response = await fetch(endpoint);
   if (!response.ok) return;
   const report = await response.json();
-  portfolios = report.portfolios || [];
-  accounts = report.accounts || [];
-  campaigns = report.campaigns || [];
+  normalizeReportData(report);
   allNodes = campaigns.flatMap((c) => [
     c,
     ...c.children.flatMap((a) => [a, ...a.children]),
