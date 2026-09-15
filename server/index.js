@@ -87,6 +87,17 @@ app.get('/api/report', async (request, response) => {
   LEFT JOIN event_stats ON event_stats.email=lead_base.email
   GROUP BY COALESCE(utm_campaign,''),COALESCE(utm_content,''),COALESCE(utm_term,'')`, [from, to]);
   const gcByPath = new Map(gcRows.rows.map((row) => [[row.campaign_name,row.adset_name,row.ad_name].join('||'), row]));
+  const gcOnlyAccountId = 'getcourse';
+  if (gcByPath.size && !accounts.some((account) => account.id === gcOnlyAccountId)) {
+    accounts.push({
+      id: gcOnlyAccountId,
+      portfolioId: 'getcourse',
+      name: 'GetCourse',
+      originalName: 'GetCourse',
+      currency: accounts[0]?.currency || 'USD',
+    });
+    if (!portfolios.some((portfolio) => portfolio.id === 'getcourse')) portfolios.push({ id: 'getcourse', name: 'GetCourse' });
+  }
 
   const gcAgeRows = await pool.query(`WITH lead_base AS (
     SELECT lower(email) AS email, COALESCE(lead_date, created_at::date) AS lead_date, utm_campaign, utm_content, utm_term
@@ -159,6 +170,7 @@ app.get('/api/report', async (request, response) => {
     ORDER BY c.name,s.name,a.name`, [metaAdAccountIds, from, to]);
 
   const campaignMap = new Map();
+  const pathsFromMeta = new Set();
   for (const row of rows.rows) {
     if (!campaignMap.has(row.campaign_id)) campaignMap.set(row.campaign_id, {
       id: row.campaign_id, accountId: row.account_id, name: row.campaign_name, children: [], adsets: new Map(),
@@ -168,6 +180,7 @@ app.get('/api/report', async (request, response) => {
       id: row.adset_id, accountId: row.account_id, name: row.adset_name, children: [],
     });
     const pathKey = [row.campaign_name,row.adset_name,row.ad_name].join('||');
+    pathsFromMeta.add(pathKey);
     campaign.adsets.get(row.adset_id).children.push({
       id: row.ad_id, accountId: row.account_id, name: row.ad_name, spend: row.spend,
       ageBreakdown: gcAgeByPath.get(pathKey) || {},
@@ -186,6 +199,39 @@ app.get('/api/report', async (request, response) => {
       '45_plus': Number(gcByPath.get(pathKey)?.age_45_plus || 0),
     });
   }
+  for (const [pathKey, gcRow] of gcByPath.entries()) {
+    if (pathsFromMeta.has(pathKey)) continue;
+    const [campaignName, adsetName, adName] = pathKey.split('||');
+    if (!campaignName && !adsetName && !adName) continue;
+    const campaignId = 'gc:campaign:' + campaignName;
+    const adsetId = 'gc:adset:' + campaignName + '||' + adsetName;
+    const adId = 'gc:ad:' + pathKey;
+    if (!campaignMap.has(campaignId)) campaignMap.set(campaignId, {
+      id: campaignId, accountId: gcOnlyAccountId, name: campaignName || 'Fără campanie', children: [], adsets: new Map(),
+    });
+    const campaign = campaignMap.get(campaignId);
+    if (!campaign.adsets.has(adsetId)) campaign.adsets.set(adsetId, {
+      id: adsetId, accountId: gcOnlyAccountId, name: adsetName || 'Fără adset', children: [],
+    });
+    campaign.adsets.get(adsetId).children.push({
+      id: adId, accountId: gcOnlyAccountId, name: adName || 'Fără creative', spend: 0,
+      ageBreakdown: gcAgeByPath.get(pathKey) || {},
+      leadsFb: 0, leadsGc: Number(gcRow.leads_gc || 0),
+      l1in: Number(gcRow.l1in || 0),
+      l1sent: Number(gcRow.l1sent || 0),
+      graduates: Number(gcRow.graduates || 0),
+      orders: Number(gcRow.orders || 0),
+      paid: Number(gcRow.paid || 0),
+      revenue: Number(gcRow.revenue || 0),
+      sub_18: Number(gcRow.sub_18 || 0),
+      '18_21': Number(gcRow.age_18_21 || 0),
+      '22_24': Number(gcRow.age_22_24 || 0),
+      '25_34': Number(gcRow.age_25_34 || 0),
+      '35_44': Number(gcRow.age_35_44 || 0),
+      '45_plus': Number(gcRow.age_45_plus || 0),
+    });
+  }
+
   const campaigns = [...campaignMap.values()].map(({ adsets, ...campaign }) => ({
     ...campaign,
     children: [...adsets.values()],

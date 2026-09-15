@@ -5,6 +5,7 @@ const WEBSITE_LEAD_ACTION = 'lead';
 const ATTRIBUTION_WINDOW = '7d_click';
 const TRANSIENT_META_CODES = new Set([1, 2, 4, 17, 32, 613]);
 const RETRY_DELAYS_MS = [1000, 3000, 7000];
+const INSIGHTS_CHUNK_DAYS = 14;
 
 export function leadCount(actions = []) {
   const action = actions.find(({ action_type }) => action_type === WEBSITE_LEAD_ACTION);
@@ -69,6 +70,16 @@ async function allPages(path, params) {
   }
 }
 
+function isoDate(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
 async function insights(accountId, from, to, breakdowns) {
   const params = {
     level: 'ad', time_increment: 1, time_range: { since: from, until: to }, limit: 500,
@@ -77,6 +88,18 @@ async function insights(accountId, from, to, breakdowns) {
   };
   if (breakdowns) params.breakdowns = breakdowns;
   return allPages(`${accountId}/insights`, params);
+}
+
+async function insightsInChunks(accountId, from, to, breakdowns) {
+  const rows = [];
+  let cursor = new Date(`${from}T00:00:00Z`);
+  const end = new Date(`${to}T00:00:00Z`);
+  while (cursor <= end) {
+    const chunkEnd = new Date(Math.min(addDays(cursor, INSIGHTS_CHUNK_DAYS - 1).getTime(), end.getTime()));
+    rows.push(...await insights(accountId, isoDate(cursor), isoDate(chunkEnd), breakdowns));
+    cursor = addDays(chunkEnd, 1);
+  }
+  return rows;
 }
 
 async function storeAccount(client, account, rows) {
@@ -137,9 +160,9 @@ export async function runManualSync({ from, to }) {
       let account, baseRows, ageRows;
       try { account = await graph(accountId, { fields: 'id,name,currency,timezone_name,account_status' }); }
       catch (error) { throw new Error(`${accountId}: citirea contului a eșuat · ${error.message}`); }
-      try { baseRows = await insights(accountId, from, to); }
+      try { baseRows = await insightsInChunks(accountId, from, to); }
       catch (error) { throw new Error(`${accountId}: raportul zilnic a eșuat · ${error.message}`); }
-      try { ageRows = await insights(accountId, from, to, 'age'); }
+      try { ageRows = await insightsInChunks(accountId, from, to, 'age'); }
       catch (error) { throw new Error(`${accountId}: raportul pe vârste a eșuat · ${error.message}`); }
       await withTransaction(async (client) => {
         await storeAccount(client, account, baseRows);

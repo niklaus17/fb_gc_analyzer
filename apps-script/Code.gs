@@ -107,7 +107,18 @@ function buildReport_(from, to) {
   const accountIds = new Set(accounts.map((account) => account.id));
   const metaRows = rows_('meta_daily').filter((row) => row.date >= dateFrom && row.date <= dateTo && (!accountIds.size || accountIds.has(row.account_id)));
   const gc = getGcAggregates_(dateFrom, dateTo);
+  const gcOnlyAccountId = 'getcourse';
+  if (gc.byPath.size && !accounts.some((account) => account.id === gcOnlyAccountId)) {
+    accounts.push({
+      id: gcOnlyAccountId,
+      portfolioId: 'getcourse',
+      name: 'GetCourse',
+      originalName: 'GetCourse',
+      currency: accounts[0]?.currency || SETTINGS.DEFAULT_CURRENCY,
+    });
+  }
   const campaignMap = new Map();
+  const pathsFromMeta = new Set();
   metaRows.forEach((row) => {
     const campaignId = row.campaign_id || row.utm_campaign || row.campaign_name;
     const adsetId = row.adset_id || row.utm_content || row.adset_name;
@@ -119,8 +130,24 @@ function buildReport_(from, to) {
     const adset = campaign.adsets.get(adsetId);
     if (!adset.ads.has(adId)) adset.ads.set(adId, { id: adId, accountId: row.account_id, name: row.ad_name || adId, spend: 0, leadsFb: 0 });
     const ad = adset.ads.get(adId);
+    pathsFromMeta.add(pathKey_(campaign.name, adset.name, ad.name));
     ad.spend += num_(row.spend);
     ad.leadsFb += num_(row.leads_fb);
+  });
+  gc.byPath.forEach((metrics, key) => {
+    if (pathsFromMeta.has(key)) return;
+    const parts = key.split('||');
+    const campaignName = parts[0] || 'Fără campanie';
+    const adsetName = parts[1] || 'Fără adset';
+    const adName = parts[2] || 'Fără creative';
+    const campaignId = 'gc:campaign:' + campaignName;
+    const adsetId = 'gc:adset:' + campaignName + '||' + adsetName;
+    const adId = 'gc:ad:' + key;
+    if (!campaignMap.has(campaignId)) campaignMap.set(campaignId, { id: campaignId, accountId: gcOnlyAccountId, name: campaignName, children: [], adsets: new Map() });
+    const campaign = campaignMap.get(campaignId);
+    if (!campaign.adsets.has(adsetId)) campaign.adsets.set(adsetId, { id: adsetId, accountId: gcOnlyAccountId, name: adsetName, children: [], ads: new Map() });
+    const adset = campaign.adsets.get(adsetId);
+    adset.ads.set(adId, { id: adId, accountId: gcOnlyAccountId, name: adName, spend: 0, leadsFb: 0, ...metrics });
   });
   campaignMap.forEach((campaign) => {
     campaign.adsets.forEach((adset) => {
@@ -138,7 +165,7 @@ function buildReport_(from, to) {
     source: 'google-sheets',
     from: dateFrom,
     to: dateTo,
-    portfolios: [{ id: SETTINGS.PORTFOLIO_ID, name: SETTINGS.PORTFOLIO_NAME }],
+    portfolios: [{ id: SETTINGS.PORTFOLIO_ID, name: SETTINGS.PORTFOLIO_NAME }, ...(accounts.some((account) => account.portfolioId === 'getcourse') ? [{ id: 'getcourse', name: 'GetCourse' }] : [])],
     accounts,
     campaigns: Array.from(campaignMap.values()),
   };
