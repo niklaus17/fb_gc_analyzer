@@ -1015,6 +1015,13 @@ function normalizeReportData(report) {
   portfolios = report.portfolios || [];
   accounts = report.accounts || [];
   campaigns = report.campaigns || [];
+  for (const account of accounts) {
+    const portfolioId = account.portfolioId || "unknown";
+    account.portfolioId = portfolioId;
+    if (!portfolios.some((portfolio) => portfolio.id === portfolioId)) {
+      portfolios.push({ id: portfolioId, name: portfolioId === "getcourse" ? "GetCourse" : "Fără Business Portfolio" });
+    }
+  }
   const accountIds = new Set(accounts.map((account) => account.id));
   const inferredIds = [...new Set(campaigns.map((campaign) => campaign.accountId).filter(Boolean))]
     .filter((id) => !accountIds.has(id));
