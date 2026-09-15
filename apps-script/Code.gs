@@ -26,6 +26,23 @@ const SHEETS = {
   gc_age_45_plus: ['email'],
 };
 
+
+const COMMON_HEADER_ALIASES = {
+  user_email: 'email',
+};
+const LEAD_HEADER_ALIASES = {
+  ...COMMON_HEADER_ALIASES,
+  number: 'gc_order_number',
+  data_crearii: 'created_at',
+  comanda_detalii: 'product_name',
+};
+const ORDER_HEADER_ALIASES = {
+  ...COMMON_HEADER_ALIASES,
+  number: 'order_number',
+  cost_money: 'cost_amount',
+  payed_money: 'paid_amount',
+};
+
 const AGE_KEYS = ['sub_18', '18_21', '22_24', '25_34', '35_44', '45_plus'];
 const EVENT_TYPES = ['l1in', 'l1sent', 'graduates', ...AGE_KEYS];
 const EVENT_SHEETS = {
@@ -210,9 +227,7 @@ function importSheet_(sheetName, body, mode) {
   const ss = SpreadsheetApp.getActive();
   const sheet = ensureSheet_(ss, sheetName, SHEETS[sheetName]);
   const headers = SHEETS[sheetName];
-  const first = parsed[0].map(normalizeKey_);
-  const hasHeader = headers.every((header) => first.includes(header));
-  const records = records_(parsed, headers);
+  const records = records_(parsed, headers, aliasesForSheet_(sheetName));
   if (mode === 'replace') {
     sheet.clearContents();
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
@@ -228,10 +243,10 @@ function importGetCourse_(kind, body) {
   if (!kind) throw new Error('Missing kind');
   const parsed = parseCsv_(body);
   if (!parsed.length) return 0;
-  if (kind === 'leads') return upsertRows_('gc_leads', records_(parsed, SHEETS.gc_leads), 'gc_order_number');
-  if (kind === 'orders') return upsertRows_('gc_orders', records_(parsed, SHEETS.gc_orders), 'order_number');
-  if (kind === 'orders_paid') return upsertRows_('gc_orders_paid', records_(parsed, SHEETS.gc_orders_paid), 'order_number');
-  if (EVENT_TYPES.includes(kind)) return upsertRows_(EVENT_SHEETS[kind], records_(parsed, ['email']).map((row) => ({ email: cleanEmail_(row.email) })), 'email');
+  if (kind === 'leads') return upsertRows_('gc_leads', records_(parsed, SHEETS.gc_leads, LEAD_HEADER_ALIASES), 'gc_order_number');
+  if (kind === 'orders') return upsertRows_('gc_orders', records_(parsed, SHEETS.gc_orders, ORDER_HEADER_ALIASES), 'order_number');
+  if (kind === 'orders_paid') return upsertRows_('gc_orders_paid', records_(parsed, SHEETS.gc_orders_paid, ORDER_HEADER_ALIASES), 'order_number');
+  if (EVENT_TYPES.includes(kind)) return upsertRows_(EVENT_SHEETS[kind], records_(parsed, ['email'], COMMON_HEADER_ALIASES).map((row) => ({ email: cleanEmail_(row.email) })), 'email');
   throw new Error('Unknown GetCourse kind');
 }
 
@@ -277,7 +292,19 @@ function ensureSheet_(ss, name, headers) {
   return sheet;
 }
 function getHeaders_(sheet) { return sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]; }
-function records_(rows, fallbackHeaders) { const first = rows[0].map(normalizeKey_); const known = new Set(Object.values(SHEETS).flat()); const hasHeader = first.some((key) => known.has(key)); const headers = hasHeader ? first : fallbackHeaders; return (hasHeader ? rows.slice(1) : rows).map((row) => Object.fromEntries(headers.map((header, i) => [header, row[i] || '']))); }
+function aliasesForSheet_(sheetName) {
+  if (sheetName === 'gc_leads') return LEAD_HEADER_ALIASES;
+  if (sheetName === 'gc_orders' || sheetName === 'gc_orders_paid') return ORDER_HEADER_ALIASES;
+  return COMMON_HEADER_ALIASES;
+}
+function records_(rows, fallbackHeaders, aliases) {
+  aliases = aliases || COMMON_HEADER_ALIASES;
+  const first = rows[0].map((value) => aliases[normalizeKey_(value)] || normalizeKey_(value));
+  const known = new Set(Object.values(SHEETS).flat());
+  const hasHeader = first.some((key) => known.has(key));
+  const headers = hasHeader ? first : fallbackHeaders;
+  return (hasHeader ? rows.slice(1) : rows).map((row) => Object.fromEntries(headers.map((header, i) => [header, row[i] || ''])));
+}
 function parseCsv_(text) { return Utilities.parseCsv(text || ''); }
 function normalizeKey_(value) { return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\uFEFF/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''); }
 function cleanEmail_(value) { return String(value || '').trim().toLowerCase(); }

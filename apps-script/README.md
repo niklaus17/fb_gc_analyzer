@@ -37,6 +37,25 @@ POST ?action=gcImport&kind=l1sent&token=...
 ```
 
 
+## Leaduri GetCourse
+
+Fila `gc_leads` poate primi exportul de leaduri/comenzi gratuite direct cu antetul din GetCourse:
+
+```text
+Email, Number, Data creării, Comandă Detalii, utm_source, utm_medium, utm_campaign, utm_content, utm_term
+```
+
+La import, Apps Script mapează automat aceste coloane astfel:
+
+- `Email` → `email`
+- `Number` → `gc_order_number`
+- `Data creării` → `created_at`
+- `Comandă Detalii` → `product_name`
+- `utm_campaign`, `utm_content`, `utm_term` rămân sursa de atribuire pentru campanie / adset / reclamă.
+
+`Number` este tratat diferit pentru leaduri și pentru comenzi plătite: la leaduri intră în `gc_order_number`, iar la `gc_orders` / `gc_orders_paid` intră în `order_number`.
+
+
 ## File evenimente GetCourse
 
 Pentru import manual mai simplu, evenimentele sunt în file separate cu o singură coloană `email`:
