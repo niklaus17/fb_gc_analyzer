@@ -1,5 +1,5 @@
 window.CAMPAIGNSHEET_CONFIG = {
-  dataSource: "google",
+  dataSource: "auto",
   googleApiUrl: "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec",
   googleApiToken: "change-this-token",
   defaultCurrency: "USD",

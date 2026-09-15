@@ -181,6 +181,14 @@ function savePreferences() {
     if ($("storage-note")) $("storage-note").textContent = "Stocarea locală nu este disponibilă. Filtrele se păstrează doar până la reîncărcare.";
   }
 }
+function isLocalHost() {
+  return ["localhost", "127.0.0.1", ""].includes(location.hostname);
+}
+function isGoogleDataSource() {
+  if (appSettings.dataSource === "google") return true;
+  if (appSettings.dataSource === "auto") return !isLocalHost();
+  return false;
+}
 function clearSavedPreferences() {
   savedPreferences = {};
   localStorage.removeItem(PREF_KEY);
@@ -768,7 +776,7 @@ async function previewGetCourseFile(input, kind) {
   try {
     const text = await file.text();
     pendingGcImport = { kind, text, fileName: file.name };
-    if (appSettings.dataSource === "google" && appSettings.googleApiUrl) {
+    if (isGoogleDataSource() && appSettings.googleApiUrl) {
       preview.innerHTML = `<strong>Import Google Sheets: ${file.name}</strong><p>Fișierul va fi trimis în Apps Script la tipul <b>${kind}</b>. Preview-ul detaliat este disponibil doar în modul local.</p><div class="preview-actions"><button id="gc-confirm-import" class="primary" type="button">Confirmă importul</button><button id="gc-cancel-import" type="button">Anulează</button></div>`;
       preview.classList.remove("hidden");
       status.textContent = "Confirmă importul în Google Sheets.";
@@ -795,7 +803,7 @@ async function confirmGetCourseImport() {
   if (!pendingGcImport) return;
   const status = $("gc-import-status");
   status.textContent = "Import " + pendingGcImport.fileName + "...";
-  const endpoint = appSettings.dataSource === "google" && appSettings.googleApiUrl
+  const endpoint = isGoogleDataSource() && appSettings.googleApiUrl
     ? googleEndpoint("gcImport", { kind: pendingGcImport.kind })
     : "/api/gc/import/" + pendingGcImport.kind;
   const response = await fetch(endpoint, {
@@ -970,7 +978,7 @@ renderDateButton();
 render();
 function reportEndpoint() {
   const params = new URLSearchParams({ from: dateFrom, to: dateTo });
-  if (appSettings.dataSource === "google" && appSettings.googleApiUrl) {
+  if (isGoogleDataSource() && appSettings.googleApiUrl) {
     params.set("action", "report");
     if (appSettings.googleApiToken) params.set("token", appSettings.googleApiToken);
     return appSettings.googleApiUrl + "?" + params.toString();
