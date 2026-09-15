@@ -78,3 +78,13 @@ Iar importurile GetCourse pot fi trimise în Apps Script cu:
 ?action=gcImport&kind=orders&token=...
 ?action=gcImport&kind=l1sent&token=...
 ```
+
+### Export Facebook local către Google Sheets
+
+După ce importul Facebook este corect local, trimite datele Meta în Google Sheet cu:
+
+```bash
+npm run google:export -- 2026-01-01 2026-09-15
+```
+
+Comanda citește `config.local.js`, folosește `googleApiUrl` și `googleApiToken`, apoi înlocuiește în Google Sheet filele `ad_accounts`, `campaigns`, `adsets`, `ads` și `meta_daily`. Dacă primești `Unknown action`, redeploy-uiește Apps Script cu ultima versiune din `apps-script/Code.gs`, deoarece endpointul vechi nu are `action=importSheet`.
