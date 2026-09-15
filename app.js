@@ -1033,20 +1033,39 @@ function normalizeReportData(report) {
     });
   }
 }
+
+async function fetchReportJson() {
+  const endpoint = reportEndpoint();
+  if (!endpoint) return null;
+  const response = await fetch(endpoint);
+  const text = await response.text();
+  let report;
+  try { report = JSON.parse(text); }
+  catch {
+    const error = new Error("Apps Script nu a întors JSON. Verifică dacă ai făcut redeploy la Web App cu ultima versiune /exec.");
+    error.auth = isGoogleDataSource();
+    throw error;
+  }
+  if (!response.ok || report.ok === false) {
+    const error = new Error(report.error || "Tokenul nu a fost acceptat.");
+    error.auth = isGoogleDataSource();
+    throw error;
+  }
+  return report;
+}
 async function loadReport() {
   if (needsGoogleLogin()) { showLogin(); return; }
-  const endpoint = reportEndpoint();
-  if (!endpoint) return;
-  const response = await fetch(endpoint);
-  if (!response.ok) {
-    if (isGoogleDataSource() && (response.status === 400 || response.status === 401 || response.status === 403)) {
+  let report;
+  try { report = await fetchReportJson(); }
+  catch (error) {
+    if (error.auth) {
       localStorage.removeItem(GOOGLE_TOKEN_KEY);
       appSettings.googleApiToken = "";
-      showLogin("Tokenul nu a fost acceptat. Verifică tokenul și încearcă din nou.");
+      showLogin(error.message || "Tokenul nu a fost acceptat. Verifică tokenul și încearcă din nou.");
     }
     return;
   }
-  const report = await response.json();
+  if (!report) return;
   normalizeReportData(report);
   allNodes = campaigns.flatMap((c) => [
     c,
@@ -1062,9 +1081,23 @@ if ($('login-form')) {
     event.preventDefault();
     const token = $('login-token').value.trim();
     if (!token) { $('login-error').textContent = 'Introdu tokenul de acces.'; return; }
+    const previousToken = appSettings.googleApiToken;
     setGoogleToken(token);
-    $('login-dialog').close();
-    await loadReport();
+    $('login-error').textContent = 'Verific tokenul...';
+    try {
+      const report = await fetchReportJson();
+      $('login-dialog').close();
+      normalizeReportData(report);
+      allNodes = campaigns.flatMap((c) => [c, ...c.children.flatMap((a) => [a, ...a.children])]);
+      restorePreferencesForCurrentData();
+      render();
+      savePreferences();
+    } catch (error) {
+      appSettings.googleApiToken = previousToken;
+      if (previousToken) localStorage.setItem(GOOGLE_TOKEN_KEY, previousToken);
+      else localStorage.removeItem(GOOGLE_TOKEN_KEY);
+      $('login-error').textContent = error.message || 'Tokenul nu a fost acceptat.';
+    }
   });
 }
 loadReport().catch(() => {});
