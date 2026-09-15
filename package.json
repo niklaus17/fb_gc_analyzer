@@ -8,7 +8,8 @@
     "dev": "node --watch server/index.js",
     "start": "node server/index.js",
     "test": "node tests/accounts.test.cjs && node --test tests/server.test.js",
-    "google:export": "node scripts/export-google-sheets.mjs"
+    "google:export": "node scripts/export-google-sheets.mjs",
+    "google:export:sheet": "node scripts/export-google-sheets.mjs"
   },
   "dependencies": {
     "dotenv": "^17.2.2",

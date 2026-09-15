@@ -22,23 +22,46 @@ function toCsv(headers, rows) {
   return [headers.join(','), ...rows.map((row) => headers.map((header) => csvValue(row[header])).join(','))].join('\n');
 }
 
+const RETRY_DELAYS_MS = [1500, 4000, 8000];
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function readJsonResponse(response, context) {
   const text = await response.text();
   try { return JSON.parse(text); }
   catch {
-    throw new Error(`${context}: Apps Script a răspuns cu HTML, nu JSON. Verifică URL-ul /exec și fă redeploy la Web App ca "Anyone with the link". Răspuns: ${text.slice(0, 160)}`);
+    const error = new Error(`${context}: Apps Script a răspuns cu HTML, nu JSON. Verifică URL-ul /exec și fă redeploy la Web App ca "Anyone with the link". Răspuns: ${text.slice(0, 160)}`);
+    error.transient = response.status >= 400 || text.includes('ppConfig');
+    throw error;
   }
+}
+
+async function fetchJsonWithRetry(url, options, context) {
+  let lastError;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      const body = await readJsonResponse(response, context);
+      if (response.ok && body.ok !== false) return body;
+      const error = new Error(`${context}: ${body.error || response.statusText}`);
+      error.transient = response.status >= 500 || body.error === 'Service invoked too many times for one day';
+      throw error;
+    } catch (error) {
+      lastError = error;
+      if (!error.transient || attempt === RETRY_DELAYS_MS.length) throw error;
+      await wait(RETRY_DELAYS_MS[attempt]);
+    }
+  }
+  throw lastError;
 }
 
 async function preflight(config) {
   const url = new URL(config.apiUrl);
   url.searchParams.set('action', 'schema');
   url.searchParams.set('token', config.token);
-  const response = await fetch(url);
-  const body = await readJsonResponse(response, 'Preflight');
-  if (!response.ok || body.ok === false) {
-    throw new Error(`Preflight: ${body.error || response.statusText}. Verifică dacă APP_TOKEN din Apps Script este identic cu googleApiToken din config.local.js.`);
-  }
+  const body = await fetchJsonWithRetry(url, {}, 'Preflight');
   if (!body.sheets?.meta_daily) {
     throw new Error('Preflight: Apps Script nu are schema actualizată. Copiază ultima versiune apps-script/Code.gs, rulează setup() și redeploy New version.');
   }
@@ -50,13 +73,11 @@ async function postSheet({ apiUrl, token }, sheet, csv) {
   url.searchParams.set('sheet', sheet);
   url.searchParams.set('mode', 'replace');
   url.searchParams.set('token', token);
-  const response = await fetch(url, {
+  const body = await fetchJsonWithRetry(url, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     body: csv,
-  });
-  const body = await readJsonResponse(response, sheet);
-  if (!response.ok || body.ok === false) throw new Error(`${sheet}: ${body.error || response.statusText}`);
+  }, sheet);
   return body.imported || 0;
 }
 
@@ -68,6 +89,8 @@ async function rows(query, params = []) {
 async function main() {
   const from = process.argv[2] || '1900-01-01';
   const to = process.argv[3] || '2999-12-31';
+  const onlySheetArg = process.argv.find((arg) => arg.startsWith('--sheet='));
+  const onlySheet = onlySheetArg ? onlySheetArg.slice('--sheet='.length) : '';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) {
     throw new Error('Folosește perioada în format: npm run google:export -- 2026-01-01 2026-09-15');
   }
@@ -109,7 +132,10 @@ async function main() {
     },
   ];
 
-  for (const item of exports) {
+  const selectedExports = onlySheet ? exports.filter((item) => item.sheet === onlySheet) : exports;
+  if (!selectedExports.length) throw new Error('Fila necunoscută pentru --sheet. Folosește: ad_accounts, campaigns, adsets, ads sau meta_daily.');
+
+  for (const item of selectedExports) {
     const imported = await postSheet(localConfig, item.sheet, toCsv(item.headers, item.rows));
     console.log(`${item.sheet}: ${imported} rânduri exportate`);
   }
