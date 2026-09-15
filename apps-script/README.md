@@ -52,3 +52,20 @@ Pentru import manual mai simplu, evenimentele sunt în file separate cu o singur
 - `gc_age_45_plus`
 
 Fila `gc_events` rămâne compatibilă ca format combinat (`email`, `event_type`, `imported_at`). Raportul citește atât filele separate, cât și `gc_events`, deci putem folosi oricare dintre variante. Pentru GetCourse recomand filele separate, deoarece poți încărca liste simple de emailuri fără `imported_at`.
+
+
+## Comenzi GetCourse
+
+Pentru claritate, comenzile pot fi ținute în două file:
+
+- `gc_orders` — comenzi create / toate comenzile exportate.
+- `gc_orders_paid` — comenzile plătite, dacă vrei să imporți separat doar lista plătită.
+
+Raportul citește ambele file și dedublează după `order_number`, ca aceeași comandă să nu fie numărată de două ori. Pentru fluxul recomandat: pune comenzile create în `gc_orders` și comenzile finalizate/plătite în `gc_orders_paid`.
+
+Import Apps Script:
+
+```text
+POST ?action=gcImport&kind=orders&token=...
+POST ?action=gcImport&kind=orders_paid&token=...
+```

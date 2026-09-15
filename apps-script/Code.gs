@@ -13,6 +13,7 @@ const SHEETS = {
   meta_daily: ['date', 'account_id', 'campaign_id', 'campaign_name', 'adset_id', 'adset_name', 'ad_id', 'ad_name', 'spend', 'leads_fb'],
   gc_leads: ['email', 'gc_order_number', 'created_at', 'lead_date', 'product_name', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'status'],
   gc_orders: ['email', 'order_number', 'status', 'positions', 'cost_amount', 'paid_amount', 'currency', 'created_at'],
+  gc_orders_paid: ['email', 'order_number', 'status', 'positions', 'cost_amount', 'paid_amount', 'currency', 'created_at'],
   gc_events: ['email', 'event_type', 'imported_at'],
   gc_l1in: ['email'],
   gc_l1sent: ['email'],
@@ -128,16 +129,9 @@ function buildReport_(from, to) {
 
 function getGcAggregates_(from, to) {
   const ordersByEmail = new Map();
-  rows_('gc_orders').forEach((order) => {
-    const email = cleanEmail_(order.email);
-    if (!email) return;
-    if (!ordersByEmail.has(email)) ordersByEmail.set(email, { orders: 0, paid: 0, revenue: 0 });
-    const stats = ordersByEmail.get(email);
-    stats.orders += 1;
-    const paid = num_(order.paid_amount);
-    if (paid > 0 || /finalizat/i.test(order.status || '')) stats.paid = 1;
-    stats.revenue += paid;
-  });
+  const seenOrders = new Set();
+  rows_('gc_orders').forEach((order) => addOrder_(ordersByEmail, seenOrders, order, false));
+  rows_('gc_orders_paid').forEach((order) => addOrder_(ordersByEmail, seenOrders, order, true));
   const eventsByEmail = getEventsByEmail_();
   const byPath = new Map();
   rows_('gc_leads').forEach((lead) => {
@@ -152,6 +146,22 @@ function getGcAggregates_(from, to) {
   return { byPath };
 }
 
+
+
+function addOrder_(ordersByEmail, seenOrders, order, forcePaid) {
+  const email = cleanEmail_(order.email);
+  if (!email) return;
+  const orderNumber = String(order.order_number || '').trim();
+  const orderKey = orderNumber || [email, order.positions || '', order.created_at || '', order.paid_amount || ''].join('||');
+  if (seenOrders.has(orderKey)) return;
+  seenOrders.add(orderKey);
+  if (!ordersByEmail.has(email)) ordersByEmail.set(email, { orders: 0, paid: 0, revenue: 0 });
+  const stats = ordersByEmail.get(email);
+  stats.orders += 1;
+  const paid = num_(order.paid_amount);
+  if (forcePaid || paid > 0 || /finalizat/i.test(order.status || '')) stats.paid = 1;
+  stats.revenue += paid;
+}
 
 function getEventsByEmail_() {
   const eventsByEmail = new Map();
@@ -220,6 +230,7 @@ function importGetCourse_(kind, body) {
   if (!parsed.length) return 0;
   if (kind === 'leads') return upsertRows_('gc_leads', records_(parsed, SHEETS.gc_leads), 'gc_order_number');
   if (kind === 'orders') return upsertRows_('gc_orders', records_(parsed, SHEETS.gc_orders), 'order_number');
+  if (kind === 'orders_paid') return upsertRows_('gc_orders_paid', records_(parsed, SHEETS.gc_orders_paid), 'order_number');
   if (EVENT_TYPES.includes(kind)) return upsertRows_(EVENT_SHEETS[kind], records_(parsed, ['email']).map((row) => ({ email: cleanEmail_(row.email) })), 'email');
   throw new Error('Unknown GetCourse kind');
 }
